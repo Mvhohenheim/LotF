@@ -1256,7 +1256,7 @@ int skill_additional_effect(struct block_list* src, struct block_list *bl, uint1
 				sc_start(src, bl, SC_BLIND,50, skill_lv, skill->get_time(skill_id,skill_lv));
 			break;
 		case LG_EARTHDRIVE:
-			skill->break_equip(src, EQP_SHIELD, 100 * skill_lv, BCT_SELF);
+			/*skill->break_equip(src, EQP_SHIELD, 100 * skill_lv, BCT_SELF);*/
 			sc_start(src, bl, SC_EARTHDRIVE, 100, skill_lv, skill->get_time(skill_id, skill_lv));
 			break;
 		case SR_DRAGONCOMBO:
@@ -8168,7 +8168,7 @@ int skill_castend_nodamage_id(struct block_list *src, struct block_list *bl, uin
 			break;
 		case RK_REFRESH:
 		{
-			int heal = status_get_max_hp(bl) * 25 / 100;
+			int heal = status_get_max_hp(bl) * 50 / 100;
 			clif->skill_nodamage(src,bl,skill_id,skill_lv,
 			                     sc_start(src,bl,type,100,skill_lv,skill->get_time(skill_id,skill_lv)));
 			status->heal(bl,heal,0,1);
@@ -13578,7 +13578,7 @@ int skill_check_condition_castbegin(struct map_session_data* sd, uint16 skill_id
 		 * Ranger
 		 **/
 		case RA_WUGMASTERY:
-			if( pc_isfalcon(sd) || pc_isridingwug(sd) || sd->sc.data[SC__GROOMY] ) {
+			if( /*pc_isfalcon(sd) ||*/ pc_isridingwug(sd) || sd->sc.data[SC__GROOMY] ) {
 				clif->skill_fail(sd,skill_id,sd->sc.data[SC__GROOMY]?USESKILL_FAIL_MANUAL_NOTIFY:USESKILL_FAIL_CONDITION,0);
 				return 0;
 			}
@@ -13590,7 +13590,7 @@ int skill_check_condition_castbegin(struct map_session_data* sd, uint16 skill_id
 			}
 			break;
 		case RA_WUGRIDER:
-			if( pc_isfalcon(sd) || ( !pc_isridingwug(sd) && !pc_iswug(sd) ) ) {
+			if( /*pc_isfalcon(sd) ||*/ ( !pc_isridingwug(sd) && !pc_iswug(sd) ) ) {
 				clif->skill_fail(sd,skill_id,USESKILL_FAIL_CONDITION,0);
 				return 0;
 			}

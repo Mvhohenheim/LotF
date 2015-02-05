@@ -176,7 +176,7 @@ void initChangeTables(void) {
 	set_sc( AL_ANGELUS           , SC_ANGELUS         , SI_ANGELUS         , SCB_DEF2 );
 	set_sc( AL_BLESSING          , SC_BLESSING        , SI_BLESSING        , SCB_STR|SCB_INT|SCB_DEX );
 	set_sc( AC_CONCENTRATION     , SC_CONCENTRATION   , SI_CONCENTRATION   , SCB_AGI|SCB_DEX );
-	set_sc( TF_HIDING            , SC_HIDING          , SI_HIDING          , SCB_SPEED );
+	set_sc( TF_HIDING            , SC_HIDING          , SI_HIDING          , SCB_SPEED|SCB_HIT );
 	add_sc( TF_POISON            , SC_POISON          );
 	set_sc( KN_TWOHANDQUICKEN    , SC_TWOHANDQUICKEN  , SI_TWOHANDQUICKEN  , SCB_ASPD );
 	add_sc( KN_AUTOCOUNTER       , SC_AUTOCOUNTER     );
@@ -209,7 +209,7 @@ void initChangeTables(void) {
 	add_sc( HT_SANDMAN           , SC_SLEEP           );
 	add_sc( HT_FLASHER           , SC_BLIND           );
 	add_sc( HT_FREEZINGTRAP      , SC_FREEZE          );
-	set_sc( AS_CLOAKING          , SC_CLOAKING        , SI_CLOAKING     , SCB_CRI|SCB_SPEED );
+	set_sc( AS_CLOAKING          , SC_CLOAKING        , SI_CLOAKING     , SCB_CRI|SCB_SPEED|SCB_HIT );
 	add_sc( AS_SONICBLOW         , SC_STUN            );
 	set_sc( AS_ENCHANTPOISON     , SC_ENCHANTPOISON   , SI_ENCHANTPOISON, SCB_ATK_ELE );
 	set_sc( AS_POISONREACT       , SC_POISONREACT     , SI_POISONREACT  , SCB_NONE );
@@ -1711,7 +1711,7 @@ int status_check_skilluse(struct block_list *src, struct block_list *target, uin
 				if (!flag && ( //Blocked only from using the skill (stuff like autospell may still go through
 					sc->data[SC_SILENCE] ||
 					sc->data[SC_STEELBODY] ||
-					sc->data[SC_BERSERK] ||
+					//sc->data[SC_BERSERK] ||
 					sc->data[SC_OBLIVIONCURSE] ||
 					sc->data[SC_WHITEIMPRISON] ||
 					sc->data[SC__INVISIBILITY] ||
@@ -4843,6 +4843,10 @@ signed short status_calc_hit(struct block_list *bl, struct status_change *sc, in
 		hit -= 30;
 	if(sc->data[SC_GS_ACCURACY])
 		hit += 20; // RockmanEXE; changed based on updated [Reddozen]
+	if(sc->data[SC_CLOAKING])
+		hit += 100;
+	if(sc->data[SC_HIDING])
+		hit += 100;
 	if(sc->data[SC_MER_HIT])
 		hit += sc->data[SC_MER_HIT]->val2;
 
@@ -5373,7 +5377,7 @@ unsigned short status_calc_speed(struct block_list *bl, struct status_change *sc
 			if( sc->data[SC_CLOAKING] && (sc->data[SC_CLOAKING]->val4&1) == 1 )
 				val = max( val, sc->data[SC_CLOAKING]->val1 >= 10 ? 25 : 3 * sc->data[SC_CLOAKING]->val1 - 3 );
 			if (sc->data[SC_BERSERK])
-				val = max( val, 25 );
+				val = max( val, 50 );
 			if( sc->data[SC_RUN] )
 				val = max( val, 55 );
 			if( sc->data[SC_HLIF_AVOID] )
@@ -5743,7 +5747,7 @@ unsigned int status_calc_maxhp(struct block_list *bl, struct status_change *sc, 
 	if(sc->data[SC_DELUGE])
 		maxhp += maxhp * sc->data[SC_DELUGE]->val2/100;
 	if(sc->data[SC_BERSERK])
-		maxhp += maxhp * 2;
+		maxhp += maxhp /* "* 2" */ ;
 	if(sc->data[SC_MARIONETTE_MASTER])
 		maxhp -= 1000;
 	if(sc->data[SC_SOLID_SKIN_OPTION])
@@ -7314,16 +7318,16 @@ int status_change_start(struct block_list *src, struct block_list *bl, enum sc_t
 			if( val3 == SC__BLOODYLUST )
 				break;
 			if(battle_config.berserk_cancels_buffs) {
-				status_change_end(bl, SC_ONEHANDQUICKEN, INVALID_TIMER);
-				status_change_end(bl, SC_TWOHANDQUICKEN, INVALID_TIMER);
-				status_change_end(bl, SC_LKCONCENTRATION, INVALID_TIMER);
-				status_change_end(bl, SC_PARRYING, INVALID_TIMER);
-				status_change_end(bl, SC_AURABLADE, INVALID_TIMER);
-				status_change_end(bl, SC_MER_QUICKEN, INVALID_TIMER);
+				//status_change_end(bl, SC_ONEHANDQUICKEN, INVALID_TIMER);
+				//status_change_end(bl, SC_TWOHANDQUICKEN, INVALID_TIMER);
+				//status_change_end(bl, SC_LKCONCENTRATION, INVALID_TIMER);
+				//status_change_end(bl, SC_PARRYING, INVALID_TIMER);
+				//status_change_end(bl, SC_AURABLADE, INVALID_TIMER);
+				//status_change_end(bl, SC_MER_QUICKEN, INVALID_TIMER);
 			}
 	#ifdef RENEWAL
 			else {
-				status_change_end(bl, SC_TWOHANDQUICKEN, INVALID_TIMER);
+				//status_change_end(bl, SC_TWOHANDQUICKEN, INVALID_TIMER);
 			}
 	#endif
 			break;
@@ -8847,8 +8851,8 @@ int status_change_start(struct block_list *src, struct block_list *bl, enum sc_t
 				break;
 			case SC_INSPIRATION:
 				if( sd ) {
-					val2 = 40 * val1 + 3 * sd->status.job_level;// ATK bonus
-					val3 = sd->status.base_level / 10 + sd->status.job_level / 5;// All stat bonus
+/*					val2 = 40 * val1 + 3 * sd->status.job_level;*/ // ATK bonus
+					val3 = sd->status.base_level / 20 + sd->status.job_level / 10;// All stat bonus
 				}
 				val4 = tick / 5000;
 				tick_time = 5000; // [GodLesZ] tick time
@@ -9607,7 +9611,7 @@ int status_change_start(struct block_list *src, struct block_list *bl, enum sc_t
 		case SC_BERSERK:
 			if (!(sce->val2)) { //don't heal if already set
 				status->heal(bl, st->max_hp, 0, 1); //Do not use percent_heal as this healing must override BERSERK's block.
-				status->set_sp(bl, 0, 0); //Damage all SP
+				status->set_sp(bl, 10000, 10000); //Damage all SP
 			}
 			sce->val2 = 5 * st->max_hp / 100;
 			break;

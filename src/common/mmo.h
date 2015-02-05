@@ -49,7 +49,7 @@
 // 20120307 - 2012-03-07aRagexeRE+ - 0x970
 
 #ifndef PACKETVER
-	#define PACKETVER 20141022
+	#define PACKETVER 20131223
 #endif // PACKETVER
 
 //Uncomment the following line if your client is ragexeRE instead of ragexe (required because of conflicting packets in ragexe vs ragexeRE).
@@ -94,7 +94,7 @@
 
 #define MAX_INVENTORY 100
 //Max number of characters per account. Note that changing this setting alone is not enough if the client is not hexed to support more characters as well.
-#define MAX_CHARS 9
+#define MAX_CHARS 18
 //Number of slots carded equipment can have. Never set to less than 4 as they are also used to keep the data of forged items/equipment. [Skotlex]
 //Note: The client seems unable to receive data for more than 4 slots due to all related packets having a fixed size.
 #define MAX_SLOTS 4
@@ -150,7 +150,7 @@
 #define MAP_NAME_LENGTH_EXT (MAP_NAME_LENGTH + 4)
 
 #define MAX_FRIENDS 40
-#define MAX_MEMOPOINTS 3
+#define MAX_MEMOPOINTS 10
 
 // Size of the fame list arrays.
 #define MAX_FAME_LIST 10

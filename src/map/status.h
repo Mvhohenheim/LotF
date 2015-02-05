@@ -38,7 +38,7 @@ struct pet_data;
  * Changing this limit requires edits to refine_db.txt
  **/
 #ifdef RENEWAL
-	#define MAX_REFINE 20
+	#define MAX_REFINE 10
 #else
 	#define MAX_REFINE 10
 #endif

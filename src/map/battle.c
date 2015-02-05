@@ -638,6 +638,9 @@ int64 battle_addmastery(struct map_session_data *sd,struct block_list *target,in
 				if((skill_lv = pc->checkskill(sd,AM_AXEMASTERY)) > 0)
 					damage += (skill_lv * 3);
 			#endif
+			if((skill_lv = pc->checkskill(sd,GN_TRAINING_SWORD)) > 0)
+				damage += skill_lv * 10;
+			break;
 		case W_DAGGER:
 			if((skill_lv = pc->checkskill(sd,SM_SWORD)) > 0)
 				damage += (skill_lv * 4);
@@ -651,6 +654,9 @@ int64 battle_addmastery(struct map_session_data *sd,struct block_list *target,in
 			#endif
 			if((skill_lv = pc->checkskill(sd,SM_TWOHAND)) > 0)
 				damage += (skill_lv * 4);
+			break;
+			if((skill_lv = pc->checkskill(sd,GN_TRAINING_SWORD)) > 0)
+				damage += skill_lv * 10;
 			break;
 		case W_1HSPEAR:
 		case W_2HSPEAR:
@@ -754,7 +760,7 @@ int64 battle_calc_masteryfix(struct block_list *src, struct block_list *target, 
 			/* Fall through */
 		case RA_WUGSTRIKE:
 		case RA_WUGBITE:
-			damage += 30*pc->checkskill(sd, RA_TOOTHOFWUG);
+			damage += 6*pc->checkskill(sd, RA_TOOTHOFWUG);
 			break;
 		case HT_FREEZINGTRAP:
 			damage += 40 * pc->checkskill(sd, RA_RESEARCHTRAP);
@@ -2202,12 +2208,12 @@ int battle_calc_skillratio(int attack_type, struct block_list *src, struct block
 						skillratio += 10 * sc->data[SC_DANCE_WITH_WUG]->val1 * (2 + battle->calc_chorusbonus(sd));
 					break;
 				case RA_WUGSTRIKE:
-					skillratio = 200 * skill_lv;
+					skillratio = 150 * skill_lv;
 					if( sc && sc->data[SC_DANCE_WITH_WUG] )
 						skillratio += 10 * sc->data[SC_DANCE_WITH_WUG]->val1 * (2 + battle->calc_chorusbonus(sd));
 					break;
 				case RA_WUGBITE:
-					skillratio += 300 + 200 * skill_lv;
+					skillratio += 300 + 100 * skill_lv;
 					if ( skill_lv == 5 ) skillratio += 100;
 					break;
 				case RA_SENSITIVEKEEN:
@@ -2332,11 +2338,20 @@ int battle_calc_skillratio(int attack_type, struct block_list *src, struct block
 					break;
 				case LG_EARTHDRIVE:
 					if( sd ) {
-						short index = sd->equip_index[EQI_HAND_L];
-						if( index >= 0 && sd->inventory_data[index] && sd->inventory_data[index]->type == IT_ARMOR )
+						short index = sd->equip_index[EQI_HAND_R];
+						if( index >= 0 && sd->inventory_data[index] && sd->inventory_data[index]->type == IT_WEAPON )
 						skillratio = (1 + skill_lv) * sd->inventory_data[index]->weight / 10;
 					}
 					RE_LVL_DMOD(100);
+					break;
+/*					i = distance_bl(src,target);
+					if( i < 2 )
+						skillratio = 300 * skill_lv;
+					else if( i < 4 )
+						skillratio = 250 * skill_lv;
+					else
+						skillratio = 200 * skill_lv;
+					skillratio = (status_get_str(src) / 8) * 100;*/
 					break;
 				case LG_HESPERUSLIT:
 					skillratio = 120 * skill_lv;
@@ -4861,7 +4876,7 @@ struct Damage battle_calc_weapon_attack(struct block_list *src,struct block_list
 			case RA_WUGSTRIKE:
 			case RA_WUGBITE:
 				if(sd)
-					ATK_ADD(30*pc->checkskill(sd, RA_TOOTHOFWUG));
+					ATK_ADD(6*pc->checkskill(sd, RA_TOOTHOFWUG));
 				if( sc && sc->data[SC_DANCE_WITH_WUG] )
 					ATK_ADD(2 * sc->data[SC_DANCE_WITH_WUG]->val1 * (2 + battle->calc_chorusbonus(sd)));
 				break;
