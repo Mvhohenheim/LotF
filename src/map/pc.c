@@ -892,24 +892,25 @@ int pc_isequip(struct map_session_data *sd,int n)
 	if(pc_has_permission(sd, PC_PERM_USE_ALL_EQUIPMENT))
 		return 1;
 	
-	if(item->elv && sd->status.base_level < (unsigned int)item->elv){
-		clif->msg(sd, 0x6ED);
+	if (item->elv && sd->status.base_level < (unsigned int)item->elv) {
+		clif->msgtable(sd, MSG_ITEM_CANT_EQUIP_LVL);
 		return 0;
 	}
-	if(item->elvmax && sd->status.base_level > (unsigned int)item->elvmax){
-		clif->msg(sd, 0x6ED);
+	if (item->elvmax && sd->status.base_level > (unsigned int)item->elvmax) {
+		clif->msgtable(sd, MSG_ITEM_CANT_EQUIP_LVL);
 		return 0;
 	}
 	if(item->sex != 2 && sd->status.sex != item->sex)
 		return 0;
 
 	if ( item->equip & EQP_AMMO ) {
-		if ( !pc_iscarton(sd) && (sd->status.class_ == JOB_GENETIC_T || sd->status.class_ == JOB_GENETIC) ) {
-			clif->msg(sd, 0x5EF);
+		if ( (sd->state.active && !pc_iscarton(sd)) // check if sc data is already loaded.
+			&& (sd->status.class_ == JOB_GENETIC_T || sd->status.class_ == JOB_GENETIC) ) {
+			clif->msgtable(sd, MSG_ITEM_NEED_CART);
 			return 0;
 		}
 		if ( !pc_ismadogear(sd) && (sd->status.class_ == JOB_MECHANIC_T || sd->status.class_ == JOB_MECHANIC) ) {
-			clif->msg(sd, 0x59B);
+			clif->msgtable(sd, MSG_ITEM_NEED_MADO);
 			return 0;
 		}
 	}
@@ -1132,6 +1133,8 @@ bool pc_authok(struct map_session_data *sd, int login_id2, time_t expiration_tim
 	sd->vars_ok = false;
 	sd->vars_received = 0x0;
 	
+	sd->lang_id = map->default_lang_id;
+	
 	//warp player
 	if ((i=pc->setpos(sd,sd->status.last_point.map, sd->status.last_point.x, sd->status.last_point.y, CLR_OUTSIGHT)) != 0) {
 		ShowError ("Last_point_map %s - id %d not found (error code %d)\n", mapindex_id2name(sd->status.last_point.map), sd->status.last_point.map, i);
@@ -1163,7 +1166,7 @@ bool pc_authok(struct map_session_data *sd, int login_id2, time_t expiration_tim
 
 		if (battle_config.display_version == 1) {
 			char buf[256];
-			sprintf(buf, msg_txt(1295), sysinfo->vcstype(), sysinfo->vcsrevision_src(), sysinfo->vcsrevision_scripts()); // %s revision '%s' (src) / '%s' (scripts)
+			sprintf(buf, msg_sd(sd,1295), sysinfo->vcstype(), sysinfo->vcsrevision_src(), sysinfo->vcsrevision_scripts()); // %s revision '%s' (src) / '%s' (scripts)
 			clif->message(sd->fd, buf);
 		}
 		
@@ -1339,7 +1342,7 @@ int pc_reg_received(struct map_session_data *sd)
 
 	if (pc_isinvisible(sd)) {
 		sd->vd.class_ = INVISIBLE_CLASS;
-		clif->message(sd->fd, msg_txt(11)); // Invisible: On
+		clif->message(sd->fd, msg_sd(sd,11)); // Invisible: On
 		// decrement the number of pvp players on the map
 		map->list[sd->bl.m].users_pvp--;
 		
@@ -1502,8 +1505,15 @@ int pc_calc_skilltree(struct map_session_data *sd)
 						}
 					}
 				}
-				if( sd->status.job_level < pc->skill_tree[c][i].joblv )
-					f = 0; // job level requirement wasn't satisfied
+				if ( sd->status.job_level < pc->skill_tree[c][i].joblv ) {
+					int x = pc->mapid2jobid(sd->class_, sd->status.sex); // need to get its own skilltree
+					if ( x > -1 ) {
+						x = pc->class2idx(x);
+						if ( !pc->skill_tree[x][i].inherited )
+							f = 0; // job level requirement wasn't satisfied
+					} else
+						f = 0;
+				}
 			}
 			if( f ) {
 				int inf2;
@@ -1597,8 +1607,16 @@ void pc_check_skilltree(struct map_session_data *sd, int skill_id)
 			}
 			if( !f )
 				continue;
-			if( sd->status.job_level < pc->skill_tree[c][i].joblv )
-				continue;
+
+			if ( sd->status.job_level < pc->skill_tree[c][i].joblv ) {
+				int x = pc->mapid2jobid(sd->class_, sd->status.sex); // need to get its own skilltree
+				if ( x > -1 ) {
+					x = pc->class2idx(x);
+					if ( !pc->skill_tree[x][i].inherited )
+						continue;
+				} else
+					continue;
+			}
 
 			j = skill->db[idx].inf2;
 			if( !sd->status.skill[idx].lv && (
@@ -1859,7 +1877,20 @@ int pc_bonus_autospell_onskill(struct s_autospell *spell, int max, short src_ski
 	return 1;
 }
 
-int pc_bonus_addeff(struct s_addeffect* effect, int max, enum sc_type id, short rate, short arrow_rate, unsigned char flag)
+/**
+ * Adds an AddEff/AddEff2/AddEffWhenHit bonus to a character.
+ *
+ * @param effect     Effects array to append to.
+ * @param max        Size of the effect array.
+ * @param id         Effect ID (@see enum sc_type).
+ * @param rate       Trigger rate.
+ * @param arrow_rate Trigger rate modifier for ranged attacks (adds to the base rate).
+ * @param flag       Trigger flags (@see enum auto_trigger_flag).
+ * @param duration   Fixed (non-reducible) duration in ms. If 0, uses the default (reducible) duration of the given effect.
+ * @retval 1 on success.
+ * @retval 0 on failure.
+ */
+int pc_bonus_addeff(struct s_addeffect* effect, int max, enum sc_type id, int16 rate, int16 arrow_rate, uint8 flag, uint16 duration)
 {
 	int i;
 	if (!(flag&(ATF_SHORT|ATF_LONG)))
@@ -1870,8 +1901,8 @@ int pc_bonus_addeff(struct s_addeffect* effect, int max, enum sc_type id, short 
 		flag|=ATF_WEAPON; //Default type: weapon.
 
 	for (i = 0; i < max && effect[i].flag; i++) {
-		if (effect[i].id == id && effect[i].flag == flag)
-		{
+		// Update existing effect if any.
+		if (effect[i].id == id && effect[i].flag == flag && effect[i].duration == duration) {
 			effect[i].rate += rate;
 			effect[i].arrow_rate += arrow_rate;
 			return 1;
@@ -1885,6 +1916,7 @@ int pc_bonus_addeff(struct s_addeffect* effect, int max, enum sc_type id, short 
 	effect[i].rate = rate;
 	effect[i].arrow_rate = arrow_rate;
 	effect[i].flag = flag;
+	effect[i].duration = duration;
 	return 1;
 }
 
@@ -2796,7 +2828,7 @@ int pc_bonus2(struct map_session_data *sd,int type,int type2,int val)
 				break;
 			}
 			pc->bonus_addeff(sd->addeff, ARRAYLENGTH(sd->addeff), (sc_type)type2,
-				sd->state.lr_flag!=2?val:0, sd->state.lr_flag==2?val:0, 0);
+			                 sd->state.lr_flag!=2?val:0, sd->state.lr_flag==2?val:0, 0, 0);
 			break;
 		case SP_ADDEFF2:
 			if (type2 > SC_MAX) {
@@ -2804,7 +2836,7 @@ int pc_bonus2(struct map_session_data *sd,int type,int type2,int val)
 				break;
 			}
 			pc->bonus_addeff(sd->addeff, ARRAYLENGTH(sd->addeff), (sc_type)type2,
-				sd->state.lr_flag!=2?val:0, sd->state.lr_flag==2?val:0, ATF_SELF);
+			                 sd->state.lr_flag!=2?val:0, sd->state.lr_flag==2?val:0, ATF_SELF, 0);
 			break;
 		case SP_RESEFF:
 			if (type2 < SC_COMMON_MIN || type2 > SC_COMMON_MAX) {
@@ -3016,7 +3048,7 @@ int pc_bonus2(struct map_session_data *sd,int type,int type2,int val)
 				break;
 			}
 			if(sd->state.lr_flag != 2)
-				pc->bonus_addeff(sd->addeff2, ARRAYLENGTH(sd->addeff2), (sc_type)type2, val, 0, 0);
+				pc->bonus_addeff(sd->addeff2, ARRAYLENGTH(sd->addeff2), (sc_type)type2, val, 0, 0, 0);
 			break;
 		case SP_SKILL_ATK:
 			if(sd->state.lr_flag == 2)
@@ -3336,6 +3368,12 @@ int pc_bonus2(struct map_session_data *sd,int type,int type2,int val)
 			if (sd->state.lr_flag != 2)
 				pc->bonus_item_drop(sd->add_drop, ARRAYLENGTH(sd->add_drop), 0, val, 1<<type2, 10000);
 			break;
+#ifdef RENEWAL
+		case SP_RACE_TOLERANCE:
+			if ( sd->state.lr_flag != 2 )
+				sd->race_tolerance[type2] += val;
+			break;
+#endif
 		default:
 			ShowWarning("pc_bonus2: unknown type %d %d %d!\n",type,type2,val);
 			break;
@@ -3419,7 +3457,7 @@ int pc_bonus3(struct map_session_data *sd,int type,int type2,int type3,int val)
 				break;
 			}
 			pc->bonus_addeff(sd->addeff, ARRAYLENGTH(sd->addeff), (sc_type)type2,
-				sd->state.lr_flag!=2?type3:0, sd->state.lr_flag==2?type3:0, val);
+			                 sd->state.lr_flag!=2?type3:0, sd->state.lr_flag==2?type3:0, val, 0);
 			break;
 
 		case SP_ADDEFF_WHENHIT:
@@ -3428,7 +3466,7 @@ int pc_bonus3(struct map_session_data *sd,int type,int type2,int type3,int val)
 				break;
 			}
 			if(sd->state.lr_flag != 2)
-				pc->bonus_addeff(sd->addeff2, ARRAYLENGTH(sd->addeff2), (sc_type)type2, type3, 0, val);
+				pc->bonus_addeff(sd->addeff2, ARRAYLENGTH(sd->addeff2), (sc_type)type2, type3, 0, val, 0);
 			break;
 
 		case SP_ADDEFF_ONSKILL:
@@ -3527,6 +3565,25 @@ int pc_bonus4(struct map_session_data *sd,int type,int type2,int type3,int type4
 		sd->mdef_set_race[type2].rate = type3;
 		sd->mdef_set_race[type2].tick = type4;
 		sd->mdef_set_race[type2].value = val;
+		break;
+
+	case SP_ADDEFF:
+	{
+		uint16 duration;
+		if (type2 > SC_MAX) {
+			ShowWarning("pc_bonus4 (Add Effect): %d is not supported.\n", type2);
+			break;
+		}
+		if (val < 0 || val > UINT16_MAX) {
+			ShowWarning("pc_bonus4 (Add Effect): invalid duration %d. Valid range: [0:%d].\n", val, UINT16_MAX);
+			duration = (val < 0 ? 0 : UINT16_MAX);
+		} else {
+			duration = (uint16)val;
+		}
+
+		pc->bonus_addeff(sd->addeff, ARRAYLENGTH(sd->addeff), (sc_type)type2,
+		                 sd->state.lr_flag!=2?type3:0, sd->state.lr_flag==2?type3:0, type4, duration);
+	}
 		break;
 
 	default:
@@ -3850,7 +3907,7 @@ int pc_paycash(struct map_session_data *sd, int price, int points)
 	if( battle_config.cashshop_show_points )
 	{
 		char output[128];
-		sprintf(output, msg_txt(504), points, cash, sd->kafraPoints, sd->cashPoints);
+		sprintf(output, msg_sd(sd,504), points, cash, sd->kafraPoints, sd->cashPoints);
 		clif_disp_onlyself(sd, output, strlen(output));
 	}
 	return cash+points;
@@ -3875,7 +3932,7 @@ int pc_getcash(struct map_session_data *sd, int cash, int points)
 
 		if( battle_config.cashshop_show_points )
 		{
-			sprintf(output, msg_txt(505), cash, sd->cashPoints);
+			sprintf(output, msg_sd(sd,505), cash, sd->cashPoints);
 			clif_disp_onlyself(sd, output, strlen(output));
 		}
 		return cash;
@@ -3898,7 +3955,7 @@ int pc_getcash(struct map_session_data *sd, int cash, int points)
 
 		if( battle_config.cashshop_show_points )
 		{
-			sprintf(output, msg_txt(506), points, sd->kafraPoints);
+			sprintf(output, msg_sd(sd,506), points, sd->kafraPoints);
 			clif_disp_onlyself(sd, output, strlen(output));
 		}
 		return points;
@@ -4141,13 +4198,13 @@ int pc_dropitem(struct map_session_data *sd,int n,int amount)
 		return 0;
 
 	if( map->list[sd->bl.m].flag.nodrop ) {
-		clif->message (sd->fd, msg_txt(271));
+		clif->message (sd->fd, msg_sd(sd,271));
 		return 0; //Can't drop items in nodrop mapflag maps.
 	}
 
 	if( !pc->candrop(sd,&sd->status.inventory[n]) )
 	{
-		clif->message (sd->fd, msg_txt(263));
+		clif->message (sd->fd, msg_sd(sd,263));
 		return 0;
 	}
 
@@ -4249,14 +4306,14 @@ int pc_isUseitem(struct map_session_data *sd,int n)
 	if( !item->script ) //if it has no script, you can't really consume it!
 		return 0;
 
-	if( (item->item_usage.flag&INR_SITTING) && (pc_issit(sd) == 1) && (pc_get_group_level(sd) < item->item_usage.override) ) {
-		clif->msgtable(sd->fd,0x297);
+	if ((item->item_usage.flag&INR_SITTING) && (pc_issit(sd) == 1) && (pc_get_group_level(sd) < item->item_usage.override)) {
+		clif->msgtable(sd, MSG_ITEM_NEED_STANDING);
 		//clif->colormes(sd->fd,COLOR_WHITE,msg_txt(1474));
 		return 0; // You cannot use this item while sitting.
 	}
 
 	if (sd->state.storage_flag && item->type != IT_CASH) {
-		clif->colormes(sd->fd, COLOR_RED, msg_txt(1475));
+		clif->colormes(sd->fd, COLOR_RED, msg_sd(sd,1475));
 		return 0; // You cannot use this item while storage is open.
 	}
 
@@ -4285,7 +4342,7 @@ int pc_isUseitem(struct map_session_data *sd,int n)
 		case ITEMID_WOB_LOCAL:    // Blue Butterfly Wing
 		case ITEMID_SIEGE_TELEPORT_SCROLL:
 			if( sd->duel_group && !battle_config.duel_allow_teleport ) {
-				clif->message(sd->fd, msg_txt(863)); // "Duel: Can't use this item in duel."
+				clif->message(sd->fd, msg_sd(sd,863)); // "Duel: Can't use this item in duel."
 				return 0;
 			}
 			if( nameid != ITEMID_WING_OF_FLY && nameid != ITEMID_GIANT_FLY_WING && map->list[sd->bl.m].flag.noreturn )
@@ -4355,12 +4412,12 @@ int pc_isUseitem(struct map_session_data *sd,int n)
 		return 0;
 
 	if( item->package || item->group ) {
-		if( pc_is90overweight(sd) ) {
-			clif->msgtable(sd->fd,ITEM_CANT_OBTAIN_WEIGHT);
+		if (pc_is90overweight(sd)) {
+			clif->msgtable(sd, MSG_ITEM_CANT_OBTAIN_WEIGHT);
 			return 0;
 		}
 		if( !pc->inventoryblank(sd) ) {
-			clif->colormes(sd->fd,COLOR_RED,msg_txt(1477));
+			clif->colormes(sd->fd,COLOR_RED,msg_sd(sd,1477));
 			return 0;
 		}
 	}
@@ -4369,13 +4426,13 @@ int pc_isUseitem(struct map_session_data *sd,int n)
 	if(item->sex != 2 && sd->status.sex != item->sex)
 		return 0;
 	//Required level check
-	if(item->elv && sd->status.base_level < (unsigned int)item->elv){
-		clif->msg(sd, 0x6EE);
+	if (item->elv && sd->status.base_level < (unsigned int)item->elv) {
+		clif->msgtable(sd, MSG_ITEM_CANT_USE_LVL);
 		return 0;
 	}
 
-	if(item->elvmax && sd->status.base_level > (unsigned int)item->elvmax){
-		clif->msg(sd, 0x6EE);
+	if (item->elvmax && sd->status.base_level > (unsigned int)item->elvmax) {
+		clif->msgtable(sd, MSG_ITEM_CANT_USE_LVL);
 		return 0;
 	}
 
@@ -4427,7 +4484,7 @@ int pc_useitem(struct map_session_data *sd,int n) {
 	if( sd->npc_id || sd->state.workinprogress&1 ){
 		/* TODO: add to clif->messages enum */
 #ifdef RENEWAL
-		clif->msg(sd, 0x783); // TODO look for the client date that has this message.
+		clif->msgtable(sd, MSG_NPC_WORK_IN_PROGRESS); // TODO look for the client date that has this message.
 #endif
 		return 0;
 	}
@@ -4490,7 +4547,7 @@ int pc_useitem(struct map_session_data *sd,int n) {
 			if( sd->item_delay[i].nameid ) {// found
 				if( DIFF_TICK(sd->item_delay[i].tick, tick) > 0 ) {
 					int e_tick = (int)(DIFF_TICK(sd->item_delay[i].tick, tick)/1000);
-					clif->msgtable_num(sd->fd, 0x746, e_tick + 1); // [%d] seconds left until you can use
+					clif->msgtable_num(sd, MSG_SECONDS_UNTIL_USE, e_tick + 1); // [%d] seconds left until you can use
 					return 0; // Delay has not expired yet
 				}
 			} else {// not yet used item (all slots are initially empty)
@@ -4513,7 +4570,7 @@ int pc_useitem(struct map_session_data *sd,int n) {
 	/* on restricted maps the item is consumed but the effect is not used */
 	for(i = 0; i < map->list[sd->bl.m].zone->disabled_items_count; i++) {
 		if( map->list[sd->bl.m].zone->disabled_items[i] == nameid ) {
-			clif->msg(sd, ITEM_CANT_USE_AREA); // This item cannot be used within this area
+			clif->msgtable(sd, MSG_ITEM_CANT_USE_AREA); // This item cannot be used within this area
 			if( battle_config.item_restricted_consumption_type && sd->status.inventory[n].expire_time == 0 ) {
 				clif->useitemack(sd,n,sd->status.inventory[n].amount-1,true);
 				pc->delitem(sd,n,1,1,0,LOG_TYPE_CONSUME);
@@ -4534,14 +4591,15 @@ int pc_useitem(struct map_session_data *sd,int n) {
 	amount = sd->status.inventory[n].amount;
 	item_script = sd->inventory_data[n]->script;
 	//Check if the item is to be consumed immediately [Skotlex]
-	if( sd->inventory_data[n]->flag.delay_consume )
+	if (sd->inventory_data[n]->flag.delay_consume || sd->inventory_data[n]->flag.keepafteruse)
 		clif->useitemack(sd,n,amount,true);
 	else {
-		if (sd->status.inventory[n].expire_time == 0 && !(sd->inventory_data[n]->flag.keepafteruse)) {
-			clif->useitemack(sd,n,amount-1,true);
-			pc->delitem(sd,n,1,1,0,LOG_TYPE_CONSUME); // Rental Usable Items are not deleted until expiration
-		} else
-			clif->useitemack(sd,n,0,false);
+		if (sd->status.inventory[n].expire_time == 0) {
+			clif->useitemack(sd, n, amount - 1, true);
+			pc->delitem(sd, n, 1, 1, 0, LOG_TYPE_CONSUME); // Rental Usable Items are not deleted until expiration
+		} else {
+			clif->useitemack(sd, n, 0, false);
+		}
 	}
 	if(sd->status.inventory[n].card[0]==CARD0_CREATE &&
 		pc->famerank(MakeDWord(sd->status.inventory[n].card[2],sd->status.inventory[n].card[3]), MAPID_ALCHEMIST))
@@ -4591,7 +4649,7 @@ int pc_cart_additem(struct map_session_data *sd,struct item *item_data,int amoun
 
 	if (!itemdb_cancartstore(item_data, pc_get_group_level(sd)) || (item_data->bound > IBT_ACCOUNT && !pc_can_give_bound_items(sd))) {
 		// Check item trade restrictions
-		clif->message (sd->fd, msg_txt(264));
+		clif->message (sd->fd, msg_sd(sd,264));
 		return 1;/* TODO: there is no official response to this? */
 	}
 
@@ -5039,7 +5097,7 @@ int pc_setpos(struct map_session_data* sd, unsigned short map_index, int x, int 
 			sd->regen.state.gc = 0;
 		// make sure vending is allowed here
 		if (sd->state.vending && map->list[m].flag.novending) {
-			clif->message (sd->fd, msg_txt(276)); // "You can't open a shop on this map"
+			clif->message (sd->fd, msg_sd(sd,276)); // "You can't open a shop on this map"
 			vending->close(sd);
 		}
 		
@@ -5086,7 +5144,7 @@ int pc_setpos(struct map_session_data* sd, unsigned short map_index, int x, int 
 	}
 
 	if (sd->state.vending && map->getcell(m,x,y,CELL_CHKNOVENDING)) {
-		clif->message (sd->fd, msg_txt(204)); // "You can't open a shop on this cell."
+		clif->message (sd->fd, msg_sd(sd,204)); // "You can't open a shop on this cell."
 		vending->close(sd);
 	}
 
@@ -5844,6 +5902,138 @@ const char* job_name(int class_)
 	}
 }
 
+int pc_check_job_name(const char *name) {
+	int i, len;
+	struct {
+		const char *name;
+		int id;
+	} names[] = {
+		{ "Novice", JOB_NOVICE },
+		{ "Swordsman", JOB_SWORDMAN },
+		{ "Magician", JOB_MAGE },
+		{ "Archer", JOB_ARCHER },
+		{ "Acolyte", JOB_ACOLYTE },
+		{ "Merchant", JOB_MERCHANT },
+		{ "Thief", JOB_THIEF },
+		{ "Knight", JOB_KNIGHT },
+		{ "Priest", JOB_PRIEST },
+		{ "Wizard", JOB_WIZARD },
+		{ "Blacksmith", JOB_BLACKSMITH },
+		{ "Hunter", JOB_HUNTER },
+		{ "Assassin", JOB_ASSASSIN },
+		{ "Crusader", JOB_CRUSADER },
+		{ "Monk", JOB_MONK },
+		{ "Sage", JOB_SAGE },
+		{ "Rogue", JOB_ROGUE },
+		{ "Alchemist", JOB_ALCHEMIST },
+		{ "Bard", JOB_BARD },
+		{ "Dancer", JOB_DANCER },
+		{ "Super_Novice", JOB_SUPER_NOVICE },
+		{ "Gunslinger", JOB_GUNSLINGER },
+		{ "Ninja", JOB_NINJA },
+		{ "Novice_High", JOB_NOVICE_HIGH },
+		{ "Swordsman_High", JOB_SWORDMAN_HIGH },
+		{ "Magician_High", JOB_MAGE_HIGH },
+		{ "Archer_High", JOB_ARCHER_HIGH },
+		{ "Acolyte_High", JOB_ACOLYTE_HIGH },
+		{ "Merchant_High", JOB_MERCHANT_HIGH },
+		{ "Thief_High", JOB_THIEF_HIGH },
+		{ "Lord_Knight", JOB_LORD_KNIGHT },
+		{ "High_Priest", JOB_HIGH_PRIEST },
+		{ "High_Wizard", JOB_HIGH_WIZARD },
+		{ "Whitesmith", JOB_WHITESMITH },
+		{ "Sniper", JOB_SNIPER },
+		{ "Assassin_Cross", JOB_ASSASSIN_CROSS },
+		{ "Paladin", JOB_PALADIN },
+		{ "Champion", JOB_CHAMPION },
+		{ "Professor", JOB_PROFESSOR },
+		{ "Stalker", JOB_STALKER },
+		{ "Creator", JOB_CREATOR },
+		{ "Clown", JOB_CLOWN },
+		{ "Gypsy", JOB_GYPSY },
+		{ "Baby_Novice", JOB_BABY },
+		{ "Baby_Swordsman", JOB_BABY_SWORDMAN },
+		{ "Baby_Magician", JOB_BABY_MAGE },
+		{ "Baby_Archer", JOB_BABY_ARCHER },
+		{ "Baby_Acolyte", JOB_BABY_ACOLYTE },
+		{ "Baby_Merchant", JOB_BABY_MERCHANT },
+		{ "Baby_Thief", JOB_BABY_THIEF },
+		{ "Baby_Knight", JOB_BABY_KNIGHT },
+		{ "Baby_Priest", JOB_BABY_PRIEST },
+		{ "Baby_Wizard", JOB_BABY_WIZARD },
+		{ "Baby_Blacksmith", JOB_BABY_BLACKSMITH },
+		{ "Baby_Hunter", JOB_BABY_HUNTER },
+		{ "Baby_Assassin", JOB_BABY_ASSASSIN },
+		{ "Baby_Crusader", JOB_BABY_CRUSADER },
+		{ "Baby_Monk", JOB_BABY_MONK },
+		{ "Baby_Sage", JOB_BABY_SAGE },
+		{ "Baby_Rogue", JOB_BABY_ROGUE },
+		{ "Baby_Alchemist", JOB_BABY_ALCHEMIST },
+		{ "Baby_Bard", JOB_BABY_BARD },
+		{ "Baby_Dancer", JOB_BABY_DANCER },
+		{ "Super_Baby", JOB_SUPER_BABY },
+		{ "Taekwon", JOB_TAEKWON },
+		{ "Star_Gladiator", JOB_STAR_GLADIATOR },
+		{ "Soul_Linker", JOB_SOUL_LINKER },
+		{ "Gangsi", JOB_GANGSI },
+		{ "Death_Knight", JOB_DEATH_KNIGHT },
+		{ "Dark_Collector", JOB_DARK_COLLECTOR },
+		{ "Rune_Knight", JOB_RUNE_KNIGHT },
+		{ "Warlock", JOB_WARLOCK },
+		{ "Ranger", JOB_RANGER },
+		{ "Arch_Bishop", JOB_ARCH_BISHOP },
+		{ "Mechanic", JOB_MECHANIC },
+		{ "Guillotine_Cross", JOB_GUILLOTINE_CROSS },
+		{ "Rune_Knight_Trans", JOB_RUNE_KNIGHT_T },
+		{ "Warlock_Trans", JOB_WARLOCK_T },
+		{ "Ranger_Trans", JOB_RANGER_T },
+		{ "Arch_Bishop_Trans", JOB_ARCH_BISHOP_T },
+		{ "Mechanic_Trans", JOB_MECHANIC_T },
+		{ "Guillotine_Cross_Trans", JOB_GUILLOTINE_CROSS_T },
+		{ "Royal_Guard", JOB_ROYAL_GUARD },
+		{ "Sorcerer", JOB_SORCERER },
+		{ "Minstrel", JOB_MINSTREL },
+		{ "Wanderer", JOB_WANDERER },
+		{ "Sura", JOB_SURA },
+		{ "Genetic", JOB_GENETIC },
+		{ "Shadow_Chaser", JOB_SHADOW_CHASER },
+		{ "Royal_Guard_Trans", JOB_ROYAL_GUARD_T },
+		{ "Sorcerer_Trans", JOB_SORCERER_T },
+		{ "Minstrel_Trans", JOB_MINSTREL_T },
+		{ "Wanderer_Trans", JOB_WANDERER_T },
+		{ "Sura_Trans", JOB_SURA_T },
+		{ "Genetic_Trans", JOB_GENETIC_T },
+		{ "Shadow_Chaser_Trans", JOB_SHADOW_CHASER_T },
+		{ "Baby_Rune_Knight", JOB_BABY_RUNE },
+		{ "Baby_Warlock", JOB_BABY_WARLOCK },
+		{ "Baby_Ranger", JOB_BABY_RANGER },
+		{ "Baby_Arch_Bishop", JOB_BABY_BISHOP },
+		{ "Baby_Mechanic", JOB_BABY_MECHANIC },
+		{ "Baby_Guillotine_Cross", JOB_BABY_CROSS },
+		{ "Baby_Royal_Guard", JOB_BABY_GUARD },
+		{ "Baby_Sorcerer", JOB_BABY_SORCERER },
+		{ "Baby_Minstrel", JOB_BABY_MINSTREL },
+		{ "Baby_Wanderer", JOB_BABY_WANDERER },
+		{ "Baby_Sura", JOB_BABY_SURA },
+		{ "Baby_Genetic", JOB_BABY_GENETIC },
+		{ "Baby_Shadow_Chaser", JOB_BABY_CHASER },
+		{ "Expanded_Super_Novice", JOB_SUPER_NOVICE_E },
+		{ "Expanded_Super_Baby", JOB_SUPER_BABY_E },
+		{ "Kagerou", JOB_KAGEROU },
+		{ "Oboro", JOB_OBORO },
+		{ "Rebellion", JOB_REBELLION },
+	};
+
+	len = ARRAYLENGTH(names);
+
+	ARR_FIND(0, len, i, strcmpi(names[i].name, name) == 0);
+
+	if ( i == len )
+		return -1;
+
+	return names[i].id;
+}
+
 int pc_follow_timer(int tid, int64 tick, int id, intptr_t data) {
 	struct map_session_data *sd;
 	struct block_list *tbl;
@@ -6436,9 +6626,9 @@ int pc_skillup(struct map_session_data *sd,uint16 skill_id) {
 			clif->skillinfoblock(sd);
 	} else if( battle_config.skillup_limit ){
 		if( sd->sktree.second )
-			clif->msg_value(sd, 0x61E, sd->sktree.second);
+			clif->msgtable_num(sd, MSG_SKILL_POINTS_LEFT_JOB1, sd->sktree.second);
 		else if( sd->sktree.third )
-			clif->msg_value(sd, 0x61F, sd->sktree.third);
+			clif->msgtable_num(sd, MSG_SKILL_POINTS_LEFT_JOB2, sd->sktree.third);
 		else if( pc->calc_skillpoint(sd) < 9 ) {
 			/* TODO: official response? */
 			clif->colormes(sd->fd,COLOR_RED,"You need the basic skills");
@@ -8934,6 +9124,9 @@ void pc_equipitem_pos(struct map_session_data *sd, struct item_data *id, int pos
 
 /*==========================================
  * Equip item on player sd at req_pos from inventory index n
+ * Return:
+ *   0 = fail
+ *   1 = success
  *------------------------------------------*/
 int pc_equipitem(struct map_session_data *sd,int n,int req_pos)
 {
@@ -9065,7 +9258,7 @@ int pc_equipitem(struct map_session_data *sd,int n,int req_pos)
 	}
 	sd->npc_item_flag = iflag;
 
-	return 0;
+	return 1;
 }
 
 void pc_unequipitem_pos(struct map_session_data *sd, int n, int pos)
@@ -9131,6 +9324,9 @@ void pc_unequipitem_pos(struct map_session_data *sd, int n, int pos)
  * 0 - only unequip
  * 1 - calculate status after unequipping
  * 2 - force unequip
+ * Return:
+ *   0 = fail
+ *   1 = success
  *------------------------------------------*/
 int pc_unequipitem(struct map_session_data *sd,int n,int flag) {
 	int i,iflag;
@@ -9256,7 +9452,7 @@ int pc_unequipitem(struct map_session_data *sd,int n,int flag) {
 	}
 	sd->npc_item_flag = iflag;
 
-	return 0;
+	return 1;
 }
 
 /*==========================================
@@ -10017,151 +10213,27 @@ void pc_read_skill_tree(void) {
 #else
 	const char *config_filename = "db/pre-re/skill_tree.conf"; // FIXME hardcoded name
 #endif
-	int i = 0, jnamelen = 0;
+	int i = 0;
 	struct s_mapiterator *iter;
 	struct map_session_data *sd;
-	struct {
-		const char *name;
-		int id;
-	} jnames[] = {
-		{ "Novice", JOB_NOVICE },
-		{ "Swordsman", JOB_SWORDMAN },
-		{ "Magician", JOB_MAGE },
-		{ "Archer", JOB_ARCHER },
-		{ "Acolyte", JOB_ACOLYTE },
-		{ "Merchant", JOB_MERCHANT },
-		{ "Thief", JOB_THIEF },
-		{ "Knight", JOB_KNIGHT },
-		{ "Priest", JOB_PRIEST },
-		{ "Wizard", JOB_WIZARD },
-		{ "Blacksmith", JOB_BLACKSMITH },
-		{ "Hunter", JOB_HUNTER },
-		{ "Assassin", JOB_ASSASSIN },
-		{ "Crusader", JOB_CRUSADER },
-		{ "Monk", JOB_MONK },
-		{ "Sage", JOB_SAGE },
-		{ "Rogue", JOB_ROGUE },
-		{ "Alchemist", JOB_ALCHEMIST },
-		{ "Bard", JOB_BARD },
-		{ "Dancer", JOB_DANCER },
-		{ "Super_Novice", JOB_SUPER_NOVICE },
-		{ "Gunslinger", JOB_GUNSLINGER },
-		{ "Ninja", JOB_NINJA },
-		{ "Novice_High", JOB_NOVICE_HIGH },
-		{ "Swordsman_High", JOB_SWORDMAN_HIGH },
-		{ "Magician_High", JOB_MAGE_HIGH },
-		{ "Archer_High", JOB_ARCHER_HIGH },
-		{ "Acolyte_High", JOB_ACOLYTE_HIGH },
-		{ "Merchant_High", JOB_MERCHANT_HIGH },
-		{ "Thief_High", JOB_THIEF_HIGH },
-		{ "Lord_Knight", JOB_LORD_KNIGHT },
-		{ "High_Priest", JOB_HIGH_PRIEST },
-		{ "High_Wizard", JOB_HIGH_WIZARD },
-		{ "Whitesmith", JOB_WHITESMITH },
-		{ "Sniper", JOB_SNIPER },
-		{ "Assassin_Cross", JOB_ASSASSIN_CROSS },
-		{ "Paladin", JOB_PALADIN },
-		{ "Champion", JOB_CHAMPION },
-		{ "Professor", JOB_PROFESSOR },
-		{ "Stalker", JOB_STALKER },
-		{ "Creator", JOB_CREATOR },
-		{ "Clown", JOB_CLOWN },
-		{ "Gypsy", JOB_GYPSY },
-		{ "Baby_Novice", JOB_BABY },
-		{ "Baby_Swordsman", JOB_BABY_SWORDMAN },
-		{ "Baby_Magician", JOB_BABY_MAGE },
-		{ "Baby_Archer", JOB_BABY_ARCHER },
-		{ "Baby_Acolyte", JOB_BABY_ACOLYTE },
-		{ "Baby_Merchant", JOB_BABY_MERCHANT },
-		{ "Baby_Thief", JOB_BABY_THIEF },
-		{ "Baby_Knight", JOB_BABY_KNIGHT },
-		{ "Baby_Priest", JOB_BABY_PRIEST },
-		{ "Baby_Wizard", JOB_BABY_WIZARD },
-		{ "Baby_Blacksmith", JOB_BABY_BLACKSMITH },
-		{ "Baby_Hunter", JOB_BABY_HUNTER },
-		{ "Baby_Assassin", JOB_BABY_ASSASSIN },
-		{ "Baby_Crusader", JOB_BABY_CRUSADER },
-		{ "Baby_Monk", JOB_BABY_MONK },
-		{ "Baby_Sage", JOB_BABY_SAGE },
-		{ "Baby_Rogue", JOB_BABY_ROGUE },
-		{ "Baby_Alchemist", JOB_BABY_ALCHEMIST },
-		{ "Baby_Bard", JOB_BABY_BARD },
-		{ "Baby_Dancer", JOB_BABY_DANCER },
-		{ "Super_Baby", JOB_SUPER_BABY },
-		{ "Taekwon", JOB_TAEKWON },
-		{ "Star_Gladiator", JOB_STAR_GLADIATOR },
-		{ "Soul_Linker", JOB_SOUL_LINKER },
-		{ "Gangsi", JOB_GANGSI },
-		{ "Death_Knight", JOB_DEATH_KNIGHT },
-		{ "Dark_Collector", JOB_DARK_COLLECTOR },
-		{ "Rune_Knight", JOB_RUNE_KNIGHT },
-		{ "Warlock", JOB_WARLOCK },
-		{ "Ranger", JOB_RANGER },
-		{ "Arch_Bishop", JOB_ARCH_BISHOP },
-		{ "Mechanic", JOB_MECHANIC },
-		{ "Guillotine_Cross", JOB_GUILLOTINE_CROSS },
-		{ "Rune_Knight_Trans", JOB_RUNE_KNIGHT_T },
-		{ "Warlock_Trans", JOB_WARLOCK_T },
-		{ "Ranger_Trans", JOB_RANGER_T },
-		{ "Arch_Bishop_Trans", JOB_ARCH_BISHOP_T },
-		{ "Mechanic_Trans", JOB_MECHANIC_T },
-		{ "Guillotine_Cross_Trans", JOB_GUILLOTINE_CROSS_T },
-		{ "Royal_Guard", JOB_ROYAL_GUARD },
-		{ "Sorcerer", JOB_SORCERER },
-		{ "Minstrel", JOB_MINSTREL },
-		{ "Wanderer", JOB_WANDERER },
-		{ "Sura", JOB_SURA },
-		{ "Genetic", JOB_GENETIC },
-		{ "Shadow_Chaser", JOB_SHADOW_CHASER },
-		{ "Royal_Guard_Trans", JOB_ROYAL_GUARD_T },
-		{ "Sorcerer_Trans", JOB_SORCERER_T },
-		{ "Minstrel_Trans", JOB_MINSTREL_T },
-		{ "Wanderer_Trans", JOB_WANDERER_T },
-		{ "Sura_Trans", JOB_SURA_T },
-		{ "Genetic_Trans", JOB_GENETIC_T },
-		{ "Shadow_Chaser_Trans", JOB_SHADOW_CHASER_T },
-		{ "Baby_Rune_Knight", JOB_BABY_RUNE },
-		{ "Baby_Warlock", JOB_BABY_WARLOCK },
-		{ "Baby_Ranger", JOB_BABY_RANGER },
-		{ "Baby_Arch_Bishop", JOB_BABY_BISHOP },
-		{ "Baby_Mechanic", JOB_BABY_MECHANIC },
-		{ "Baby_Guillotine_Cross", JOB_BABY_CROSS },
-		{ "Baby_Royal_Guard", JOB_BABY_GUARD },
-		{ "Baby_Sorcerer", JOB_BABY_SORCERER },
-		{ "Baby_Minstrel", JOB_BABY_MINSTREL },
-		{ "Baby_Wanderer", JOB_BABY_WANDERER },
-		{ "Baby_Sura", JOB_BABY_SURA },
-		{ "Baby_Genetic", JOB_BABY_GENETIC },
-		{ "Baby_Shadow_Chaser", JOB_BABY_CHASER },
-		{ "Expanded_Super_Novice", JOB_SUPER_NOVICE_E },
-		{ "Expanded_Super_Baby", JOB_SUPER_BABY_E },
-		{ "Kagerou", JOB_KAGEROU },
-		{ "Oboro", JOB_OBORO },
-		{ "Rebellion", JOB_REBELLION },
-	};
 	
 	if (libconfig->read_file(&skill_tree_conf, config_filename)) {
 		ShowError("can't read %s\n", config_filename);
 		return;
 	}
-	
-	jnamelen = ARRAYLENGTH(jnames);
-	
+		
 	while ((skt = libconfig->setting_get_elem(skill_tree_conf.root,i++))) {
 		int k;
 		const char *name = config_setting_name(skt);
 		
-		ARR_FIND(0, jnamelen, k, strcmpi(jnames[k].name,name) == 0 );
-		
-		if( k == jnamelen ) {
-			ShowWarning("pc_read_skill_tree: '%s' unknown job name!\n",name);
+		if ( (k = pc->check_job_name(name)) == -1 ) {
+			ShowWarning("pc_read_skill_tree: '%s' unknown job name!\n", name);
 			continue;
 		}
-		
-		
+				
 		if( ( skills = libconfig->setting_get_member(skt,"skills") ) ) {
 			int c = 0;
-			int idx = pc->class2idx(jnames[k].id);
+			int idx = pc->class2idx(k);
 			
 			while ((sk = libconfig->setting_get_elem(skills,c++))) {
 				const char *sk_name = config_setting_name(sk);
@@ -10175,7 +10247,7 @@ void pc_read_skill_tree(void) {
 						ShowWarning("pc_read_skill_tree: Unable to load skill %d (%s) into '%s's tree. Maximum number of skills per class has been reached.\n", skill_id, sk_name, name);
 						continue;
 					} else if (pc->skill_tree[idx][skidx].id) {
-						ShowNotice("pc_read_skill_tree: Overwriting %d for '%s' (%d)\n", skill_id, name, jnames[k].id);
+						ShowNotice("pc_read_skill_tree: Overwriting %d for '%s' (%d)\n", skill_id, name, k);
 					}
 					
 					pc->skill_tree[idx][skidx].id    = skill_id;
@@ -10219,46 +10291,42 @@ void pc_read_skill_tree(void) {
 	while( (skt = libconfig->setting_get_elem(skill_tree_conf.root,i++)) ) {
 		int k, idx;
 		const char *name = config_setting_name(skt);
-
 		
-		ARR_FIND(0, jnamelen, k, strcmpi(jnames[k].name,name) == 0 );
-		
-		if( k == jnamelen ) {
-			ShowWarning("pc_read_skill_tree: '%s' unknown job name!\n",name);
+		if ( (k = pc->check_job_name(name)) == -1 ) {
+			ShowWarning("pc_read_skill_tree: '%s' unknown job name!\n", name);
 			continue;
 		}
-		idx = pc->class2idx(jnames[k].id);
+
+		idx = pc->class2idx(k);
 
 		if( ( inherit = libconfig->setting_get_member(skt,"inherit") ) ) {
 			const char *iname;
 			int v = 0;
-			while ((iname = libconfig->setting_get_string_elem(inherit, v++))) {
+			while ( (iname = libconfig->setting_get_string_elem(inherit, v++)) ) {
 				int b = 0, a, d, f, fidx;
 
-				ARR_FIND(0, jnamelen, b, strcmpi(jnames[b].name,iname) == 0 );
-				
-				if( b == jnamelen ) {
-					ShowWarning("pc_read_skill_tree: '%s' trying to inherit unknown '%s'!\n",name,iname);
+				if ( (b = pc->check_job_name(iname)) == -1 ) {
+					ShowWarning("pc_read_skill_tree: '%s' trying to inherit unknown '%s'!\n", name, iname);
 					continue;
 				}
-				
-				fidx = pc->class2idx(jnames[b].id);
-							
-				ARR_FIND( 0, MAX_SKILL_TREE, d, pc->skill_tree[fidx][d].id == 0 );
 
-				for( f = 0; f < d; f++ ) {
-					
-					ARR_FIND( 0, MAX_SKILL_TREE, a, pc->skill_tree[idx][a].id == 0 || pc->skill_tree[idx][a].id == pc->skill_tree[fidx][f].id );
+				fidx = pc->class2idx(b);
 
-					if( a == MAX_SKILL_TREE ) {
-						ShowWarning("pc_read_skill_tree: '%s' can't inherit '%s', skill tree is full!\n", name,iname);
+				ARR_FIND(0, MAX_SKILL_TREE, d, pc->skill_tree[fidx][d].id == 0);
+
+				for ( f = 0; f < d; f++ ) {
+
+					ARR_FIND(0, MAX_SKILL_TREE, a, pc->skill_tree[idx][a].id == 0 || pc->skill_tree[idx][a].id == pc->skill_tree[fidx][f].id);
+
+					if ( a == MAX_SKILL_TREE ) {
+						ShowWarning("pc_read_skill_tree: '%s' can't inherit '%s', skill tree is full!\n", name, iname);
 						break;
-					} else if ( pc->skill_tree[idx][a].id || ( pc->skill_tree[idx][a].id == NV_TRICKDEAD && ((pc->jobid2mapid(jnames[k].id)&(MAPID_BASEMASK|JOBL_2))!=MAPID_NOVICE) ) ) /* we skip trickdead for non-novices */
+					} else if ( pc->skill_tree[idx][a].id || (pc->skill_tree[idx][a].id == NV_TRICKDEAD && ((pc->jobid2mapid(k)&(MAPID_BASEMASK | JOBL_2)) != MAPID_NOVICE)) ) /* we skip trickdead for non-novices */
 						continue;/* skip */
-					
-					memcpy(&pc->skill_tree[idx][a],&pc->skill_tree[fidx][f],sizeof(pc->skill_tree[fidx][f]));
+					memcpy(&pc->skill_tree[idx][a], &pc->skill_tree[fidx][f], sizeof(pc->skill_tree[fidx][f]));
+					pc->skill_tree[idx][a].inherited = 1;
 				}
-				
+
 			}
 		}
 		
@@ -10579,7 +10647,7 @@ void pc_bank_withdraw(struct map_session_data *sd, int money) {
 		return;
 	} else if ( limit_check > MAX_ZENY ) {
 		/* no official response for this scenario exists. */
-		clif->colormes(sd->fd,COLOR_RED,msg_txt(1482));
+		clif->colormes(sd->fd,COLOR_RED,msg_sd(sd,1482));
 		return;
 	}
 	
@@ -10600,7 +10668,7 @@ void pc_scdata_received(struct map_session_data *sd) {
 	if (sd->expiration_time != 0) { // don't display if it's unlimited or unknow value
 		time_t exp_time = sd->expiration_time;
 		char tmpstr[1024];
-		strftime(tmpstr, sizeof(tmpstr) - 1, msg_txt(501), localtime(&exp_time)); // "Your account time limit is: %d-%m-%Y %H:%M:%S."
+		strftime(tmpstr, sizeof(tmpstr) - 1, msg_sd(sd,501), localtime(&exp_time)); // "Your account time limit is: %d-%m-%Y %H:%M:%S."
 		clif->wis_message(sd->fd, map->wisp_server_name, tmpstr, strlen(tmpstr)+1);
 		
 		pc->expire_check(sd);
@@ -10979,16 +11047,10 @@ void pc_defaults(void) {
 	/* */
 	pc->day_timer_tid = INVALID_TIMER;
 	pc->night_timer_tid = INVALID_TIMER;
-	/* respecting order */
-	memset(pc->exp_table, 0, sizeof(pc->exp_table)
-		   + sizeof(pc->max_level)
-		   + sizeof(pc->statp)
-		   + sizeof(pc->level_penalty)
-		   + sizeof(pc->skill_tree)
-		   + sizeof(pc->smith_fame_list)
-		   + sizeof(pc->chemist_fame_list)
-		   + sizeof(pc->taekwon_fame_list)
-		   );
+
+	// These macros are used instead of a sum of sizeof(), to ensure that padding won't interfere with our size, and code won't rot when adding more fields
+	memset(ZEROED_BLOCK_POS(pc), 0, ZEROED_BLOCK_SIZE(pc));
+
 	/* */
 	memcpy(pc->equip_pos, &equip_pos, sizeof(pc->equip_pos));
 	/* */
@@ -11263,4 +11325,6 @@ void pc_defaults(void) {
 	pc->autotrade_start = pc_autotrade_start;
 	pc->autotrade_prepare = pc_autotrade_prepare;
 	pc->autotrade_populate = pc_autotrade_populate;
+
+	pc->check_job_name = pc_check_job_name;
 }

@@ -689,7 +689,7 @@ bool homunculus_change_name_ack(struct map_session_data *sd, char* name, int fla
 	normalize_name(name," ");//bugreport:3032
 
 	if ( !flag || !strlen(name) ) {
-		clif->message(sd->fd, msg_txt(280)); // You cannot use this name
+		clif->message(sd->fd, msg_sd(sd,280)); // You cannot use this name
 		return false;
 	}
 	safestrncpy(hd->homunculus.name,name,NAME_LENGTH);
@@ -729,7 +729,7 @@ bool homunculus_create(struct map_session_data *sd, struct s_homunculus *hom) {
 
 	nullpo_retr(false, sd);
 
-	Assert((sd->status.hom_id == 0 || sd->hd == 0) || sd->hd->master == sd);
+	Assert_retr(false, sd->status.hom_id == 0 || sd->hd == 0 || sd->hd->master == sd);
 
 	i = homun->db_search(hom->class_,HOMUNCULUS_CLASS);
 	if(i < 0) {

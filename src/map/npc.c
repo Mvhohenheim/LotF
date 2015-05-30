@@ -62,34 +62,52 @@ static struct view_data npc_viewdb2[MAX_NPC_CLASS2_END-MAX_NPC_CLASS2_START];
 /* for speedup */
 unsigned int npc_market_qty[MAX_INVENTORY];
 
-static struct script_event_s
-{
+static struct script_event_s {
 	//Holds pointers to the commonly executed scripts for speedup. [Skotlex]
 	struct event_data *event[UCHAR_MAX];
 	const char *event_name[UCHAR_MAX];
 	uint8 event_count;
 } script_event[NPCE_MAX];
 
-struct view_data* npc_get_viewdata(int class_)
+/**
+ * Returns the viewdata for normal npc classes.
+ * @param class_ The NPC class ID.
+ * @return The viewdata, or NULL if the ID is invalid.
+ */
+struct view_data *npc_get_viewdata(int class_)
 {
-	//Returns the viewdata for normal npc classes.
-	if( class_ == INVISIBLE_CLASS )
+	if (class_ == INVISIBLE_CLASS)
 		return &npc_viewdb[0];
-	if (npc->db_checkid(class_) || class_ == WARP_CLASS){
-		if( class_ > MAX_NPC_CLASS2_START ){
-			return &npc_viewdb2[class_-MAX_NPC_CLASS2_START];
-		}else{
+	if (npc->db_checkid(class_)) {
+		if (class_ < MAX_NPC_CLASS) {
 			return &npc_viewdb[class_];
+		} else if (class_ >= MAX_NPC_CLASS2_START && class_ < MAX_NPC_CLASS2_END) {
+			return &npc_viewdb2[class_-MAX_NPC_CLASS2_START];
 		}
 	}
 	return NULL;
 }
 
-//Checks if a given id is a valid npc id. [Skotlex]
-//Since new npcs are added all the time, the max valid value is the one before the first mob (Scorpion = 1001)
+/**
+ * Checks if a given id is a valid npc id.
+ *
+ * Since new npcs are added all the time, the max valid value is the one before the first mob (Scorpion = 1001)
+ *
+ * @param id The NPC ID to validate.
+ * @return Whether the value is a valid ID.
+ */
 bool npc_db_checkid(int id)
 {
-    return ((id >= 46 && id <= 125) || id == HIDDEN_WARP_CLASS || (id > 400 && id < MAX_NPC_CLASS) || id == INVISIBLE_CLASS || (id > MAX_NPC_CLASS2_START && id < MAX_NPC_CLASS2_END));
+	if (id >= WARP_CLASS && id <= 125) // First subrange
+		return true;
+	if (id == HIDDEN_WARP_CLASS || id == INVISIBLE_CLASS) // Special IDs not included in the valid ranges
+		return true;
+	if (id > 400 && id < MAX_NPC_CLASS) // Second subrange
+		return true;
+	if (id >= MAX_NPC_CLASS2_START && id < MAX_NPC_CLASS2_END) // Second range
+		return true;
+	// Anything else is invalid
+	return false;
 }
 
 /// Returns a new npc id that isn't being used in id_db.
@@ -1175,17 +1193,17 @@ void run_tomb(struct map_session_data* sd, struct npc_data* nd) {
 	strftime(time, sizeof(time), "%H:%M", localtime(&nd->u.tomb.kill_time));
 
 	// TODO: Find exact color?
-	snprintf(buffer, sizeof(buffer), msg_txt(857), nd->u.tomb.md->db->name); // "[ ^EE0000%s^000000 ]"
+	snprintf(buffer, sizeof(buffer), msg_sd(sd,857), nd->u.tomb.md->db->name); // "[ ^EE0000%s^000000 ]"
 	clif->scriptmes(sd, nd->bl.id, buffer);
 
-	clif->scriptmes(sd, nd->bl.id, msg_txt(858)); // "Has met its demise"
+	clif->scriptmes(sd, nd->bl.id, msg_sd(sd,858)); // "Has met its demise"
 
-	snprintf(buffer, sizeof(buffer), msg_txt(859), time); // "Time of death : ^EE0000%s^000000"
+	snprintf(buffer, sizeof(buffer), msg_sd(sd,859), time); // "Time of death : ^EE0000%s^000000"
 	clif->scriptmes(sd, nd->bl.id, buffer);
 
-	clif->scriptmes(sd, nd->bl.id, msg_txt(860)); // "Defeated by"
+	clif->scriptmes(sd, nd->bl.id, msg_sd(sd,860)); // "Defeated by"
 
-	snprintf(buffer, sizeof(buffer), msg_txt(861), nd->u.tomb.killer_name[0] ? nd->u.tomb.killer_name : msg_txt(15)); // "[^EE0000%s^000000]" / "Unknown"
+	snprintf(buffer, sizeof(buffer), msg_sd(sd,861), nd->u.tomb.killer_name[0] ? nd->u.tomb.killer_name : msg_sd(sd,15)); // "[^EE0000%s^000000]" / "Unknown"
 	clif->scriptmes(sd, nd->bl.id, buffer);
 
 	clif->scriptclose(sd, nd->bl.id);
@@ -1566,7 +1584,7 @@ bool npc_trader_open(struct map_session_data *sd, struct npc_data *nd) {
 			
 				/* nothing to display, no items available */
 				if( i == nd->u.scr.shop->items ) {
-					clif->colormes(sd->fd,COLOR_RED, msg_txt(881));
+					clif->colormes(sd->fd,COLOR_RED, msg_sd(sd,881));
 					return false;
 				}
 
@@ -2924,7 +2942,13 @@ const char* npc_parse_script(char* w1, char* w2, char* w3, char* w4, const char*
 	if( end == NULL )
 		return NULL;// (simple) parse error, don't continue
 
+	
+	script->parser_current_npc_name = w3;
+	
 	scriptroot = script->parse(script_start, filepath, strline(buffer,script_start-buffer), SCRIPT_USE_LABEL_DB, retval);
+
+	script->parser_current_npc_name = NULL;
+	
 	label_list = NULL;
 	label_list_num = 0;
 	if( script->label_count ) {
@@ -3435,7 +3459,12 @@ const char* npc_parse_function(char* w1, char* w2, char* w3, char* w4, const cha
 	if( end == NULL )
 		return NULL;// (simple) parse error, don't continue
 
+	script->parser_current_npc_name = w3;
+
 	scriptroot = script->parse(script_start, filepath, strline(buffer,start-buffer), SCRIPT_RETURN_EMPTY_SCRIPT, retval);
+
+	script->parser_current_npc_name = NULL;
+	
 	if( scriptroot == NULL )// parse error, continue
 		return end;
 
@@ -3801,13 +3830,14 @@ const char* npc_parse_mapflag(char* w1, char* w2, char* w3, char* w4, const char
 	}
 	else if (!strcmpi(w3,"battleground")) {
 		struct map_zone_data *zone;
-		if( state ) {
-			if( sscanf(w4, "%d", &state) == 1 )
+		if (state) {
+			if (w4 && sscanf(w4, "%d", &state) == 1)
 				map->list[m].flag.battleground = state;
 			else
 				map->list[m].flag.battleground = 1; // Default value
-		} else
+		} else {
 			map->list[m].flag.battleground = 0;
+		}
 
 		if( map->list[m].flag.battleground && map->list[m].flag.pvp ) {
 			map->list[m].flag.pvp = 0;
@@ -4610,6 +4640,12 @@ int do_init_npc(bool minimal) {
 
 		timer->add_func_list(npc->event_do_clock,"npc_event_do_clock");
 		timer->add_func_list(npc->timerevent,"npc_timerevent");
+	}
+	
+	if( script->lang_export_fp ) {
+		ShowInfo("Lang exported to '%s'\n",script->lang_export_file);
+		fclose(script->lang_export_fp);
+		script->lang_export_fp = NULL;
 	}
 
 	// Init dummy NPC

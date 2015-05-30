@@ -1311,7 +1311,7 @@ int mob_unlocktarget(struct mob_data *md, int64 tick) {
 		md->ud.target_to = 0;
 		unit->set_target(&md->ud, 0);
 	}
-	if(map->count_oncell(md->bl.m, md->bl.x, md->bl.y, BL_CHAR|BL_NPC, 1) > battle_config.official_cell_stack_limit) {
+	if(battle_config.official_cell_stack_limit && map->count_oncell(md->bl.m, md->bl.x, md->bl.y, BL_CHAR|BL_NPC, 1) > battle_config.official_cell_stack_limit) {
 		unit->walktoxy(&md->bl, md->bl.x, md->bl.y, 8);
 	}
 
@@ -2074,11 +2074,6 @@ void mob_damage(struct mob_data *md, struct block_list *src, int damage) {
 		}
 	}
 #endif
-
-	if( md->special_state.ai == 2 ) {//LOne WOlf explained that ANYONE can trigger the marine countdown skill. [Skotlex]
-		md->state.alchemist = 1;
-		mob->skill_use(md, timer->gettick(), MSC_ALCHEMIST);
-	}
 }
 
 /*==========================================
@@ -3307,6 +3302,11 @@ int mobskill_event(struct mob_data *md, struct block_list *src, int64 tick, int 
 	if(md->bl.prev == NULL || md->status.hp <= 0)
 		return 0;
 
+	if( md->special_state.ai == 2 ) {//LOne WOlf explained that ANYONE can trigger the marine countdown skill. [Skotlex]
+		md->state.alchemist = 1;
+		return mob->skill_use(md, timer->gettick(), MSC_ALCHEMIST);
+	}
+	
 	target_id = md->target_id;
 	if (!target_id || battle_config.mob_changetarget_byskill)
 		md->target_id = src->id;

@@ -6,7 +6,7 @@
 #define MAP_STATUS_H
 
 #include "../config/core.h" // defType, RENEWAL, RENEWAL_ASPD
-
+#include "../common/conf.h"
 #include "../common/cbasetypes.h"
 #include "../common/mmo.h" // NEW_CARTS
 
@@ -527,7 +527,7 @@ typedef enum sc_type {
 	SC_BEYOND_OF_WARCRY,
 	SC_UNLIMITED_HUMMING_VOICE, // 410
 	SC_SITDOWN_FORCE,
-	//SC_NETHERWORLD,
+	SC_NETHERWORLD,
 	/**
 	 * Sura
 	 **/
@@ -1868,6 +1868,7 @@ struct sc_display_entry {
 struct status_change_entry {
 	int timer;
 	int val1,val2,val3,val4;
+	bool infinite_duration;
 };
 
 struct status_change {
@@ -1979,12 +1980,11 @@ struct status_interface {
 	/* vars */
 	int current_equip_item_index;
 	int current_equip_card_id;
-	/* */
+
+BEGIN_ZEROED_BLOCK; /* Everything within this block will be memset to 0 when status_defaults() is executed */
 	int max_weight_base[CLASS_COUNT];
-	int hp_coefficient[CLASS_COUNT];
-	int hp_coefficient2[CLASS_COUNT];
-	int hp_sigma_val[CLASS_COUNT][MAX_LEVEL+1];
-	int sp_coefficient[CLASS_COUNT];
+	int HP_table[CLASS_COUNT][MAX_LEVEL + 1];
+	int SP_table[CLASS_COUNT][MAX_LEVEL + 1];
 	int aspd_base[CLASS_COUNT][MAX_WEAPON_TYPE+1]; // +1 for RENEWAL_ASPD
 	sc_type Skill2SCTable[MAX_SKILL];  // skill  -> status
 	int IconChangeTable[SC_MAX];          // status -> "icon" (icon is a bit of a misnomer, since there exist values with no icon associated)
@@ -1998,6 +1998,8 @@ struct status_interface {
 	int atkmods[3][MAX_WEAPON_TYPE];//ATK weapon modification for size (size_fix.txt)
 	char job_bonus[CLASS_COUNT][MAX_LEVEL];
 	sc_conf_type sc_conf[SC_MAX];
+END_ZEROED_BLOCK; /* End */
+
 	struct eri *data_ers; //For sc_data entries
 	struct status_data dummy;
 	int64 natural_heal_prev_tick;
@@ -2081,9 +2083,8 @@ struct status_interface {
 	void (*initDummyData) (void);
 	int (*base_amotion_pc) (struct map_session_data *sd, struct status_data *st);
 	unsigned short (*base_atk) (const struct block_list *bl, const struct status_data *st);
-	void (*calc_sigma) (void);
-	unsigned int (*base_pc_maxhp) (struct map_session_data *sd, struct status_data *st);
-	unsigned int (*base_pc_maxsp) (struct map_session_data *sd, struct status_data *st);
+	unsigned int (*get_base_maxhp) (struct map_session_data *sd, struct status_data *st);
+	unsigned int (*get_base_maxsp) (struct map_session_data *sd, struct status_data *st);
 	int (*calc_npc_) (struct npc_data *nd, enum e_status_calc_opt opt);
 	unsigned short (*calc_str) (struct block_list *bl, struct status_change *sc, int str);
 	unsigned short (*calc_agi) (struct block_list *bl, struct status_change *sc, int agi);
@@ -2113,11 +2114,12 @@ struct status_interface {
 	void (*display_remove) (struct map_session_data *sd, enum sc_type type);
 	int (*natural_heal) (struct block_list *bl, va_list args);
 	int (*natural_heal_timer) (int tid, int64 tick, int id, intptr_t data);
-	bool (*readdb_job1) (char *fields[], int columns, int current);
 	bool (*readdb_job2) (char *fields[], int columns, int current);
 	bool (*readdb_sizefix) (char *fields[], int columns, int current);
 	bool (*readdb_refine) (char *fields[], int columns, int current);
 	bool (*readdb_scconfig) (char *fields[], int columns, int current);
+	void (*read_job_db) (void);
+	void (*read_job_db_sub) (int idx, const char *name, config_setting_t *jdb);
 };
 
 struct status_interface *status;

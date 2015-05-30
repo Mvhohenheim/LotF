@@ -425,6 +425,7 @@ enum status_point_types {
 	SP_SKILL_COOLDOWN,SP_SKILL_FIXEDCAST, SP_SKILL_VARIABLECAST, SP_FIXCASTRATE, SP_VARCASTRATE, //2050-2054
 	SP_SKILL_USE_SP,SP_MAGIC_ATK_ELE, SP_ADD_FIXEDCAST, SP_ADD_VARIABLECAST,  //2055-2058
 	SP_SET_DEF_RACE,SP_SET_MDEF_RACE, //2059-2060
+	SP_RACE_TOLERANCE, //2061
 
 	/* must be the last, plugins add bonuses from this value onwards */
 	SP_LAST_KNOWN,
@@ -867,6 +868,8 @@ struct map_interface {
 	char npc_market_data_db[32];
 
 	char default_codepage[32];
+	char default_lang_str[64];
+	uint8 default_lang_id;
 
 	int server_port;
 	char server_ip[32];
@@ -893,15 +896,15 @@ struct map_interface {
 	DBMap* regen_db;  // int id -> struct block_list* (status_natural_heal processing)
 	DBMap* zone_db;   // string => struct map_zone_data
 	DBMap* iwall_db;
-	/* order respected by map_defaults() in order to zero */
-	/* from block_free until zone_pk */
 	struct block_list **block_free;
 	int block_free_count, block_free_lock, block_free_list_size;
 	struct block_list **bl_list;
 	int bl_list_count, bl_list_size;
+BEGIN_ZEROED_BLOCK; // This block is zeroed in map_defaults()
 	struct block_list bl_head;
 	struct map_zone_data zone_all;/* used as a base on all maps */
 	struct map_zone_data zone_pk;/* used for (pk_mode) */
+END_ZEROED_BLOCK;
 	/* */
 	struct map_session_data *cpsd;
 	struct map_data *list;

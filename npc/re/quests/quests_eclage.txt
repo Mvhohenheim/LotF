@@ -44,29 +44,28 @@ ecl_fild01,118,311,4	script	Teleport Cat No.1#1	4_M_BOSSCAT,{
 		mes "I'll see you later then";
 		close;
 	}
+	.@i = (.@menu/2)-1;
 	if (.@menu%2){
-		.@menu = (.@menu/2)-1;
-		if (Zeny < (.price[.@pindex[.@menu]]*1000)){
+		if (Zeny < (.price[.@pindex[.@i]]*1000)){
 			mes "[Teleport Cat]";
 			mes "I'm afraid it's not enough. Sorry, but it can't be done for free~";
 			close;
 		}
-		Zeny -= .price[.@pindex[.@menu]]*1000;
+		Zeny -= .price[.@pindex[.@i]]*1000;
 	}
 	else{
-		.@menu = (.@menu/2)-1;
-		if (countitem(Malang_Sp_Can) < .price[.@pindex[(.@menu/2)]] ){
+		if (countitem(Malang_Sp_Can) < .price[.@pindex[.@i]] ){
 			mes "[Teleport Cat]";
 			mes "I'm afraid it's not enough. Sorry, but it can't be done for free~";
 			close;
 		}
-		delitem Malang_Sp_Can,.price[.@pindex[(.@menu/2)]];
+		delitem Malang_Sp_Can,.price[.@pindex[.@i]];
 	}
-	warp .maps$[.@mindex],.x[.@mindex],.y[.@mindex];
+	warp .maps$[.@mindex[.@i]],.x[.@mindex[.@i]],.y[.@mindex[.@i]];
 	end;
 	
 OnInit:
-	setarray .maps$,"bif_fild02","ecl_fild01","spl_fild02","mid_camp","ma_fild02","dic_fild01";	//Map Names	//2,4,8,16,32,64
+	setarray .maps$,"bif_fild02","ecl_fild01","spl_fild02","mid_camp","man_fild02","dic_fild01";	//Map Names	//2,4,8,16,32,64
 	setarray .x,291,116,51,180,133,159;	//X-Co-ordinate of Maps
 	setarray .y,323,309,240,247,47,264;	//Y-Co-ordinates of Map
 	setarray .descript$,"Entrace to Mora","Near Eclage","Near Splendide","Midgard Allied Forces Post","Manuk Field","Near El Dicastes";
