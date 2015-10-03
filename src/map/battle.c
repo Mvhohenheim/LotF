@@ -1580,7 +1580,7 @@ int battle_calc_skillratio(int attack_type, struct block_list *src, struct block
 				case NJ_KOUENKA:
 					skillratio -= 10;
 					if (sd && sd->charm_type == CHARM_TYPE_FIRE && sd->charm_count > 0)
-						skillratio += 20 * sd->charm_count;
+						skillratio += 5 * sd->charm_count;
 					break;
 				case NJ_KAENSIN:
 					skillratio -= 50;
@@ -1588,9 +1588,9 @@ int battle_calc_skillratio(int attack_type, struct block_list *src, struct block
 						skillratio += 10 * sd->charm_count;
 					break;
 				case NJ_BAKUENRYU:
-					skillratio += 50 * (skill_lv - 1);
+					skillratio += 100 * (skill_lv + 1);
 					if (sd && sd->charm_type == CHARM_TYPE_FIRE && sd->charm_count > 0)
-						skillratio += 15 * sd->charm_count;
+						skillratio += 30 * sd->charm_count;
 					break;
 #ifdef RENEWAL
 				case NJ_HYOUSENSOU:
@@ -1600,18 +1600,18 @@ int battle_calc_skillratio(int attack_type, struct block_list *src, struct block
 					break;
 #endif
 				case NJ_HYOUSYOURAKU:
-					skillratio += 50 * skill_lv;
+					skillratio += 200 * skill_lv;
 					if (sd && sd->charm_type == CHARM_TYPE_WATER && sd->charm_count > 0)
-						skillratio += 25 * sd->charm_count;
+						skillratio += 50 * sd->charm_count;
 					break;
 				case NJ_RAIGEKISAI:
-					skillratio += 60 + 40 * skill_lv;
+					skillratio += 60 + 100 * skill_lv;
 					if (sd && sd->charm_type == CHARM_TYPE_WIND && sd->charm_count > 0)
-						skillratio += 15 * sd->charm_count;
+						skillratio += 30 * sd->charm_count;
 					break;
 				case NJ_KAMAITACHI:
 					if (sd && sd->charm_type == CHARM_TYPE_WIND && sd->charm_count > 0)
-						skillratio += 10 * sd->charm_count;
+						skillratio += 100 * sd->charm_count;
 					/* Fall through */
 				case NPC_ENERGYDRAIN:
 					skillratio += 100 * skill_lv;
@@ -1636,7 +1636,7 @@ int battle_calc_skillratio(int attack_type, struct block_list *src, struct block
 				case NJ_HUUJIN:
 					skillratio += 50;
 					if (sd && sd->charm_type == CHARM_TYPE_WIND && sd->charm_count > 0)
-						skillratio += 20 * sd->charm_count;
+						skillratio += 5 * sd->charm_count;
 					break;
 			#else
 				case WZ_VERMILION:

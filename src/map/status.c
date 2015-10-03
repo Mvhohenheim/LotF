@@ -4642,7 +4642,7 @@ unsigned short status_calc_ematk(struct block_list *bl, struct status_change *sc
 	if(sc->data[SC_ODINS_POWER])
 		matk += 40 + 30 * sc->data[SC_ODINS_POWER]->val1; //70 lvl1, 100lvl2
 	if(sc->data[SC_IZAYOI])
-		matk += 25 * sc->data[SC_IZAYOI]->val1;
+		matk += 50 * sc->data[SC_IZAYOI]->val1;
 	return (unsigned short)cap_value(matk,0,USHRT_MAX);
 #else
 	return 0;
