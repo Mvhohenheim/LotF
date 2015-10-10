@@ -7935,8 +7935,17 @@ int skill_castend_nodamage_id(struct block_list *src, struct block_list *bl, uin
 				clif->skill_nodamage(src,bl,skill_id,skill_lv,1);
 				if(rnd()%100 < (20+10*skill_lv))
 					pc->addspiritball(sd,skill->get_time(skill_id,skill_lv),10);
-				else if(sd->spiritball > 0)
+				else if(sd->spiritball > 0 && !pc->checkskill(sd,RL_RICHS_COIN))
 					pc->delspiritball(sd,1,0);
+			}
+			break;
+
+		case RL_RICHS_COIN:
+			if(sd) {
+				int limit = 10, i;
+				clif->skill_nodamage(src,bl,skill_id,skill_lv,1);
+				for (i = 0; i < limit; i++)
+					pc->addspiritball(sd,skill->get_time(skill_id,skill_lv),limit);
 			}
 			break;
 
@@ -10506,6 +10515,25 @@ int skill_castend_pos2(struct block_list* src, int x, int y, uint16 skill_id, ui
 			}
 			status_change_end(src, SC_HIDING, INVALID_TIMER);
 			break;
+	case RL_FALLEN_ANGEL:
+		if (unit->movepos(src,x,y,1,1)) {
+			enum e_skill skill_use = GS_DESPERADO;
+			uint8 skill_use_lv = pc->checkskill(sd,skill_use);
+			clif->slide(src,x,y);
+			if (skill_use_lv && skill->check_condition_castend(sd,skill_use,skill_use_lv)) {
+				sd->skill_id_old = RL_FALLEN_ANGEL;
+				skill_castend_pos2(src,src->x,src->y,skill_use,skill_use_lv,tick,SD_LEVEL|SD_ANIMATION|SD_SPLASH);
+				battle->consume_ammo(sd,skill_use,skill_use_lv);
+			}
+			sd->skill_id_old = 0;
+		}
+		else {
+			if (sd)
+				clif->skill_fail(sd,skill_id,USESKILL_FAIL_LEVEL,0);
+		}
+		break;
+
+
 		case AM_SPHEREMINE:
 		case AM_CANNIBALIZE:
 			{
@@ -14158,6 +14186,10 @@ int skill_consume_requirement( struct map_session_data *sd, uint16 skill_id, uin
 	if (type&1) {
 		switch( skill_id ) {
 			case CG_TAROTCARD: // TarotCard will consume sp in skill_cast_nodamage_id [Inkfish]
+			case GS_DESPERADO:
+				if (sd->skill_id_old == RL_FALLEN_ANGEL) //Don't consume SP if triggered by Fallen Angel
+					req.sp = 0;
+				break;
 			case MC_IDENTIFY:
 				req.sp = 0;
 				break;

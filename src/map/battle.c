@@ -3937,7 +3937,7 @@ struct Damage battle_calc_misc_attack(struct block_list *src,struct block_list *
 		break;
 
 	case KO_MUCHANAGE:
-		md.damage = skill->get_zeny(skill_id ,skill_lv);
+		md.damage = 3000 * skill_lv;
 		md.damage = md.damage * (50 + rnd()%50) / 100;
 		if ( is_boss(target) || (sd && !pc->checkskill(sd,NJ_TOBIDOUGU)) )
 			md.damage >>= 1;
