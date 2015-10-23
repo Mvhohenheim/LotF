@@ -782,7 +782,7 @@ moc_para01,37,95,5	script	Gelkah#1	4_F_GELKA,{
 								.@ran = rand(1,1000);
 								if (.@amount == 1) {
 									if (.@ran <= 100)
-										setarray .@item[0],Blue_Potion,2; 
+										setarray .@item[0],Blue_Potion,2;
 									else if (.@ran <= 200)
 										setarray .@item[0],White_Slim_Potion,10;
 									else if (.@ran == 333)
@@ -1019,6 +1019,7 @@ S_Hunting:
 		break;
 	}
 	erasequest getarg(0);
+	return;
 }
 
 moc_para01,41,95,5	script	Rohtert#12	4_M_ROTERT,{

@@ -6,23 +6,23 @@
 
 #include "int_mail.h"
 
+#include "char/char.h"
+#include "char/inter.h"
+#include "char/mapif.h"
+#include "common/memmgr.h"
+#include "common/mmo.h"
+#include "common/nullpo.h"
+#include "common/showmsg.h"
+#include "common/socket.h"
+#include "common/sql.h"
+#include "common/strlib.h"
+#include "common/timer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-#include "char.h"
-#include "inter.h"
-#include "mapif.h"
-#include "../common/malloc.h"
-#include "../common/mmo.h"
-#include "../common/nullpo.h"
-#include "../common/showmsg.h"
-#include "../common/socket.h"
-#include "../common/sql.h"
-#include "../common/strlib.h"
-#include "../common/timer.h"
 
 struct inter_mail_interface inter_mail_s;
+struct inter_mail_interface *inter_mail;
 
 static int inter_mail_fromsql(int char_id, struct mail_data* md)
 {
@@ -460,7 +460,6 @@ void inter_mail_sendmail(int send_id, const char* send_name, int dest_id, const 
 	nullpo_retv(dest_name);
 	nullpo_retv(title);
 	nullpo_retv(body);
-	nullpo_retv(item);
 	memset(&msg, 0, sizeof(struct mail_message));
 
 	msg.send_id = send_id;

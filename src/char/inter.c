@@ -6,37 +6,37 @@
 
 #include "inter.h"
 
+#include "char/char.h"
+#include "char/geoip.h"
+#include "char/int_auction.h"
+#include "char/int_elemental.h"
+#include "char/int_guild.h"
+#include "char/int_homun.h"
+#include "char/int_mail.h"
+#include "char/int_mercenary.h"
+#include "char/int_party.h"
+#include "char/int_pet.h"
+#include "char/int_quest.h"
+#include "char/int_storage.h"
+#include "char/mapif.h"
+#include "common/cbasetypes.h"
+#include "common/db.h"
+#include "common/memmgr.h"
+#include "common/mmo.h"
+#include "common/nullpo.h"
+#include "common/showmsg.h"
+#include "common/socket.h"
+#include "common/strlib.h"
+#include "common/timer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-#include "char.h"
-#include "geoip.h"
-#include "int_auction.h"
-#include "int_elemental.h"
-#include "int_guild.h"
-#include "int_homun.h"
-#include "int_mail.h"
-#include "int_mercenary.h"
-#include "int_party.h"
-#include "int_pet.h"
-#include "int_quest.h"
-#include "int_storage.h"
-#include "mapif.h"
-#include "../common/cbasetypes.h"
-#include "../common/db.h"
-#include "../common/malloc.h"
-#include "../common/mmo.h"
-#include "../common/nullpo.h"
-#include "../common/showmsg.h"
-#include "../common/socket.h"
-#include "../common/strlib.h"
-#include "../common/timer.h"
 
 #define WISDATA_TTL (60*1000) // Wis data Time To Live (60 seconds)
 #define WISDELLIST_MAX 256    // Number of elements in the list Delete data Wis
 
 struct inter_interface inter_s;
+struct inter_interface *inter;
 
 int char_server_port = 3306;
 char char_server_ip[32] = "127.0.0.1";
@@ -493,7 +493,7 @@ void mapif_parse_accinfo2(bool success, int map_fd, int u_fd, int u_aid, int acc
 	nullpo_retv(last_ip);
 	nullpo_retv(lastlogin);
 	nullpo_retv(birthdate);
-	if (map_fd <= 0 || !session_isActive(map_fd))
+	if (map_fd <= 0 || !sockt->session_is_active(map_fd))
 		return; // check if we have a valid fd
 
 	if (!success) {
@@ -504,7 +504,7 @@ void mapif_parse_accinfo2(bool success, int map_fd, int u_fd, int u_aid, int acc
 	inter->msg_to_fd(map_fd, u_fd, u_aid, "-- Account %d --", account_id);
 	inter->msg_to_fd(map_fd, u_fd, u_aid, "User: %s | GM Group: %d | State: %d", userid, group_id, state);
 
-	if (user_pass && *user_pass != '\0') { /* password is only received if your gm level is greater than the one you're searching for */
+	if (*user_pass != '\0') { /* password is only received if your gm level is greater than the one you're searching for */
 		if (pin_code && *pin_code != '\0')
 			inter->msg_to_fd(map_fd, u_fd, u_aid, "Password: %s (PIN:%s)", user_pass, pin_code);
 		else
@@ -512,7 +512,7 @@ void mapif_parse_accinfo2(bool success, int map_fd, int u_fd, int u_aid, int acc
 	}
 
 	inter->msg_to_fd(map_fd, u_fd, u_aid, "Account e-mail: %s | Birthdate: %s", email, birthdate);
-	inter->msg_to_fd(map_fd, u_fd, u_aid, "Last IP: %s (%s)", last_ip, geoip->getcountry(str2ip(last_ip)));
+	inter->msg_to_fd(map_fd, u_fd, u_aid, "Last IP: %s (%s)", last_ip, geoip->getcountry(sockt->str2ip(last_ip)));
 	inter->msg_to_fd(map_fd, u_fd, u_aid, "This user has logged %d times, the last time were at %s", logincount, lastlogin);
 	inter->msg_to_fd(map_fd, u_fd, u_aid, "-- Character Details --");
 
@@ -558,7 +558,7 @@ void inter_savereg(int account_id, int char_id, const char *key, unsigned int in
 	nullpo_retv(key);
 	/* to login server we go! */
 	if( key[0] == '#' && key[1] == '#' ) {/* global account reg */
-		if( session_isValid(chr->login_fd) )
+		if (sockt->session_is_valid(chr->login_fd))
 			chr->global_accreg_to_login_add(key,index,val,is_string);
 		else {
 			ShowError("Login server unavailable, cant perform update on '%s' variable for AID:%d CID:%d\n",key,account_id,char_id);
@@ -953,7 +953,7 @@ int mapif_wis_message(struct WisData *wd)
 		wd->len = 0;
 	if (wd->len >= sizeof(wd->msg) - 1)
 		wd->len = sizeof(wd->msg) - 1;
-	
+
 	WBUFW(buf, 0) = 0x3801;
 	WBUFW(buf, 2) = 56 +wd->len;
 	WBUFL(buf, 4) = wd->id;
@@ -1171,7 +1171,7 @@ int mapif_parse_Registry(int fd)
 	if( count ) {
 		int cursor = 14, i;
 		char key[32], sval[254];
-		bool isLoginActive = session_isActive(chr->login_fd);
+		bool isLoginActive = sockt->session_is_active(chr->login_fd);
 
 		if( isLoginActive )
 			chr->global_accreg_to_login_start(account_id,char_id);
@@ -1219,9 +1219,9 @@ int mapif_parse_Registry(int fd)
 int mapif_parse_RegistryRequest(int fd)
 {
 	//Load Char Registry
-	if (RFIFOB(fd,12)) mapif->account_reg_reply(fd,RFIFOL(fd,2),RFIFOL(fd,6),3);
+	if (RFIFOB(fd,12)) mapif->account_reg_reply(fd,RFIFOL(fd,2),RFIFOL(fd,6),3); // 3: char reg
 	//Load Account Registry
-	if (RFIFOB(fd,11)) mapif->account_reg_reply(fd,RFIFOL(fd,2),RFIFOL(fd,6),2);
+	if (RFIFOB(fd,11)) mapif->account_reg_reply(fd,RFIFOL(fd,2),RFIFOL(fd,6),2); // 2: account reg
 	//Ask Login Server for Account2 values.
 	if (RFIFOB(fd,10)) chr->request_accreg2(RFIFOL(fd,2),RFIFOL(fd,6));
 	return 1;

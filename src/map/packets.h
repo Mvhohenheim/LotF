@@ -448,6 +448,8 @@ packet(0x020a,10);
 //packet(0x020b,-1);
 //packet(0x020c,-1);
 packet(0x020d,-1);
+packet(0x974,2,clif->cancelmergeitem);
+packet(0x96e,-1,clif->ackmergeitems);
 
 //2004-07-05aSakexe
 #if PACKETVER >= 20040705
@@ -2816,7 +2818,6 @@ packet(0x020d,-1);
 	packet(0x0A22,5);                           // HEADER_ZC_RECV_ROULETTE_ITEM
 #endif
 
-
 // 2014-10-22bRagexe - YomRawr
 #if PACKETVER >= 20141022
 	packet(0x0369,7,clif->pActionRequest,2,6);
@@ -2848,6 +2849,17 @@ packet(0x020d,-1);
 	packet(0x091A,26,clif->pFriendsListAdd,2);
 	packet(0x0899,5,clif->pHomMenu,2,4);
 	packet(0x0438,36,clif->pStoragePassword,0);
+	packet(0x0A01,3,clif->pHotkeyRowShift,2);
+#endif
+
+#if PACKETVER >= 20150226
+	packet(0x0A09,45);
+	packet(0x0A0A,47);
+	packet(0x0A0B,47);
+	packet(0x0A0C,56);
+	packet(0x0A0D,-1);
+	packet(0x0A0F,-1);
+	packet(0x0A10,-1);
 #endif
 
 // 2015-05-13aRagexe
@@ -2883,9 +2895,9 @@ packet(0x020d,-1);
 	packet(0x0923,36,clif->pStoragePassword,0);
 	packet(0x09e8,11,clif->pDull);	//CZ_OPEN_MAILBOX
 	packet(0x0a2e,6,clif->pDull);	//TITLE
-#endif         
+#endif
 
-/* PacketKeys: http://hercules.ws/board/topic/1105-hercules-wpe-free-june-14th-patch/ */
+/* PacketKeys: http://herc.ws/board/topic/1105-hercules-wpe-free-june-14th-patch/ */
 #if PACKETVER >= 20110817
 	packetKeys(0x053D5CED,0x3DED6DED,0x6DED6DED); /* Thanks to Shakto */
 #endif

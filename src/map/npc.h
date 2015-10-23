@@ -5,13 +5,13 @@
 #ifndef MAP_NPC_H
 #define MAP_NPC_H
 
-#include "map.h" // struct block_list
-#include "status.h" // struct status_change
-#include "unit.h" // struct unit_data
-#include "../common/cbasetypes.h"
-#include "../common/db.h"
+#include "map/map.h" // struct block_list
+#include "map/status.h" // struct status_change
+#include "map/unit.h" // struct unit_data
+#include "common/hercules.h"
+#include "common/db.h"
 
-struct HPluginData;
+struct hplugin_data_store;
 struct view_data;
 
 enum npc_parse_options {
@@ -102,9 +102,7 @@ struct npc_data {
 			char killer_name[NAME_LENGTH];
 		} tomb;
 	} u;
-	/* HPData Support for npc_data */
-	struct HPluginData **hdata;
-	unsigned int hdatac;
+	struct hplugin_data_store *hdata; ///< HPM Plugin Data Store
 };
 
 
@@ -279,16 +277,15 @@ struct npc_interface {
 	int (*secure_timeout_timer) (int tid, int64 tick, int id, intptr_t data);
 };
 
-struct npc_interface *npc;
-
 #ifdef HERCULES_CORE
 void npc_defaults(void);
 #endif // HERCULES_CORE
 
+HPShared struct npc_interface *npc;
 
 /* comes from npc_chat.c */
 #ifdef PCRE_SUPPORT
-#include "../../3rdparty/pcre/include/pcre.h"
+#include <pcre/include/pcre.h>
 /* Structure containing all info associated with a single pattern block */
 struct pcrematch_entry {
 	struct pcrematch_entry* next;
@@ -326,8 +323,6 @@ struct npc_chat_interface {
 	void (*finalize_pcrematch_entry) (struct pcrematch_entry* e);
 };
 
-struct npc_chat_interface *npc_chat;
-
 /**
  * pcre interface (libpcre)
  * so that plugins may share and take advantage of the core's pcre
@@ -344,14 +339,16 @@ struct pcre_interface {
 	int (*get_substring) (const char *subject, int *ovector, int stringcount, int stringnumber, const char **stringptr);
 };
 
-struct pcre_interface *libpcre;
-
 /**
  * Also defaults libpcre
  **/
 #ifdef HERCULES_CORE
 void npc_chat_defaults(void);
 #endif // HERCULES_CORE
+
+HPShared struct npc_chat_interface *npc_chat;
+HPShared struct pcre_interface *libpcre;
+
 #endif // PCRE_SUPPORT
 
 #endif /* MAP_NPC_H */

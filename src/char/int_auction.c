@@ -6,25 +6,26 @@
 
 #include "int_auction.h"
 
+#include "char/char.h"
+#include "char/int_mail.h"
+#include "char/inter.h"
+#include "char/mapif.h"
+#include "common/cbasetypes.h"
+#include "common/db.h"
+#include "common/memmgr.h"
+#include "common/mmo.h"
+#include "common/nullpo.h"
+#include "common/showmsg.h"
+#include "common/socket.h"
+#include "common/sql.h"
+#include "common/strlib.h"
+#include "common/timer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-#include "char.h"
-#include "int_mail.h"
-#include "inter.h"
-#include "mapif.h"
-#include "../common/db.h"
-#include "../common/malloc.h"
-#include "../common/mmo.h"
-#include "../common/nullpo.h"
-#include "../common/showmsg.h"
-#include "../common/socket.h"
-#include "../common/sql.h"
-#include "../common/strlib.h"
-#include "../common/timer.h"
 
 struct inter_auction_interface inter_auction_s;
+struct inter_auction_interface *inter_auction;
 
 static int inter_auction_count(int char_id, bool buy)
 {

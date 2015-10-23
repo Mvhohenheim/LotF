@@ -6,23 +6,23 @@
 
 #include "int_homun.h"
 
+#include "char/char.h"
+#include "char/inter.h"
+#include "char/mapif.h"
+#include "common/memmgr.h"
+#include "common/mmo.h"
+#include "common/nullpo.h"
+#include "common/showmsg.h"
+#include "common/socket.h"
+#include "common/sql.h"
+#include "common/strlib.h"
+#include "common/utils.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-#include "char.h"
-#include "inter.h"
-#include "mapif.h"
-#include "../common/malloc.h"
-#include "../common/mmo.h"
-#include "../common/nullpo.h"
-#include "../common/showmsg.h"
-#include "../common/socket.h"
-#include "../common/sql.h"
-#include "../common/strlib.h"
-#include "../common/utils.h"
 
 struct inter_homunculus_interface inter_homunculus_s;
+struct inter_homunculus_interface *inter_homunculus;
 
 int inter_homunculus_sql_init(void)
 {
@@ -55,7 +55,6 @@ void mapif_homunculus_deleted(int fd, int flag)
 
 void mapif_homunculus_loaded(int fd, int account_id, struct s_homunculus *hd)
 {
-	nullpo_retv(hd);
 	WFIFOHEAD(fd, sizeof(struct s_homunculus)+9);
 	WFIFOW(fd,0) = 0x3891;
 	WFIFOW(fd,2) = sizeof(struct s_homunculus)+9;

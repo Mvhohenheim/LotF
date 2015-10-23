@@ -6,37 +6,40 @@
 
 #include "quest.h"
 
+#include "map/battle.h"
+#include "map/chrif.h"
+#include "map/clif.h"
+#include "map/intif.h"
+#include "map/itemdb.h"
+#include "map/log.h"
+#include "map/map.h"
+#include "map/mob.h"
+#include "map/npc.h"
+#include "map/party.h"
+#include "map/pc.h"
+#include "map/script.h"
+#include "map/unit.h"
+#include "common/cbasetypes.h"
+#include "common/conf.h"
+#include "common/memmgr.h"
+#include "common/nullpo.h"
+#include "common/random.h"
+#include "common/showmsg.h"
+#include "common/socket.h"
+#include "common/strlib.h"
+#include "common/timer.h"
+#include "common/utils.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#include "battle.h"
-#include "chrif.h"
-#include "clif.h"
-#include "intif.h"
-#include "itemdb.h"
-#include "log.h"
-#include "map.h"
-#include "mob.h"
-#include "npc.h"
-#include "party.h"
-#include "pc.h"
-#include "script.h"
-#include "unit.h"
-#include "../common/cbasetypes.h"
-#include "../common/conf.h"
-#include "../common/malloc.h"
-#include "../common/nullpo.h"
-#include "../common/random.h"
-#include "../common/showmsg.h"
-#include "../common/socket.h"
-#include "../common/strlib.h"
-#include "../common/timer.h"
-#include "../common/utils.h"
-
 struct quest_interface quest_s;
+struct quest_db *db_data[MAX_QUEST_DB]; ///< Quest database
+
+struct quest_interface *quest;
 
 /**
  * Searches a quest by ID.
@@ -504,7 +507,7 @@ int quest_read_db(void)
 	const char *filename = "quest_db.conf";
 
 	sprintf(filepath, "%s/%s", map->db_path, filename);
-	if (libconfig->read_file(&quest_db_conf, filepath) || !(qdb = libconfig->setting_get_member(quest_db_conf.root, filename))) {
+	if (libconfig->read_file(&quest_db_conf, filepath) || !(qdb = libconfig->setting_get_member(quest_db_conf.root, "quest_db"))) {
 		ShowError("can't read %s\n", filepath);
 		return -1;
 	}
@@ -526,6 +529,7 @@ int quest_read_db(void)
 
 		count++;
 	}
+	libconfig->destroy(&quest_db_conf);
 	ShowStatus("Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n", count, filename);
 	return count;
 }
@@ -618,6 +622,7 @@ void do_reload_quest(void) {
  */
 void quest_defaults(void) {
 	quest = &quest_s;
+	quest->db_data = db_data;
 
 	memset(&quest->db, 0, sizeof(quest->db));
 	memset(&quest->dummy, 0, sizeof(quest->dummy));

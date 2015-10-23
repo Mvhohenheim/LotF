@@ -97,6 +97,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <limits.h>
+#include <time.h>
 
 // temporary fix for bugreport:4961 (unintended conversion from signed to unsigned)
 // (-20 >= UCHAR_MAX) returns true
@@ -239,7 +240,9 @@ typedef uintptr_t uintptr;
 #define strcasecmp  stricmp
 #define strncasecmp strnicmp
 #define strncmpi    strnicmp
+#if defined(__BORLANDC__) || _MSC_VER < 1900
 #define snprintf    _snprintf
+#endif
 #if defined(_MSC_VER) && _MSC_VER < 1400
 #define vsnprintf   _vsnprintf
 #endif
@@ -388,7 +391,7 @@ typedef char bool;
 
 //////////////////////////////////////////////////////////////////////////
 // length of a static array
-#define ARRAYLENGTH(A) ( sizeof(A)/sizeof((A)[0]) )
+#define ARRAYLENGTH(A) ( (int)(sizeof(A)/sizeof((A)[0])) )
 
 //////////////////////////////////////////////////////////////////////////
 // Make sure va_copy exists

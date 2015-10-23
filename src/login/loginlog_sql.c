@@ -6,15 +6,14 @@
 
 #include "loginlog.h"
 
-#include <string.h>
-#include <stdlib.h> // exit
+#include "common/cbasetypes.h"
+#include "common/mmo.h"
+#include "common/nullpo.h"
+#include "common/socket.h"
+#include "common/sql.h"
+#include "common/strlib.h"
 
-#include "../common/cbasetypes.h"
-#include "../common/mmo.h"
-#include "../common/nullpo.h"
-#include "../common/socket.h"
-#include "../common/sql.h"
-#include "../common/strlib.h"
+#include <stdlib.h> // exit
 
 // global sql settings (in ipban_sql.c)
 static char   global_db_hostname[32] = "127.0.0.1";
@@ -45,7 +44,7 @@ unsigned long loginlog_failedattempts(uint32 ip, unsigned int minutes)
 		return 0;
 
 	if( SQL_ERROR == SQL->Query(sql_handle, "SELECT count(*) FROM `%s` WHERE `ip` = '%s' AND `rcode` = '1' AND `time` > NOW() - INTERVAL %d MINUTE",
-		log_login_db, ip2str(ip,NULL), minutes) )// how many times failed account? in one ip.
+		log_login_db, sockt->ip2str(ip,NULL), minutes) )// how many times failed account? in one ip.
 		Sql_ShowDebug(sql_handle);
 
 	if( SQL_SUCCESS == SQL->NextRow(sql_handle) )
@@ -62,6 +61,7 @@ unsigned long loginlog_failedattempts(uint32 ip, unsigned int minutes)
 /*=============================================
  * Records an event in the login log
  *---------------------------------------------*/
+// TODO: add an enum of rcode values
 void login_log(uint32 ip, const char* username, int rcode, const char* message)
 {
 	char esc_username[NAME_LENGTH*2+1];
@@ -78,7 +78,7 @@ void login_log(uint32 ip, const char* username, int rcode, const char* message)
 
 	retcode = SQL->Query(sql_handle,
 		"INSERT INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%s', '%s', '%d', '%s')",
-		log_login_db, ip2str(ip,NULL), esc_username, rcode, esc_message);
+		log_login_db, sockt->ip2str(ip,NULL), esc_username, rcode, esc_message);
 
 	if( retcode != SQL_SUCCESS )
 		Sql_ShowDebug(sql_handle);

@@ -5,40 +5,38 @@
 #ifndef MAP_CLIF_H
 #define MAP_CLIF_H
 
-#include <stdarg.h>
+#include "map/map.h"
+#include "map/packets_struct.h"
+#include "common/hercules.h"
+#include "common/mmo.h"
 
-#include "map.h"
-#include "packets_struct.h"
-#include "../common/cbasetypes.h"
-#include "../common/db.h"
-#include "../common/mmo.h"
+#include <stdarg.h>
 
 /**
  * Declarations
  **/
+struct battleground_data;
+struct channel_data;
+struct chat_data;
+struct eri;
+struct flooritem_data;
+struct guild;
+struct homun_data;
 struct item;
 struct item_data;
-struct unit_data;
 struct map_session_data;
-struct homun_data;
 struct mercenary_data;
-struct pet_data;
 struct mob_data;
 struct npc_data;
-struct chat_data;
-struct flooritem_data;
-struct skill_unit;
-struct s_vending;
-struct party;
-struct party_data;
-struct guild;
-struct battleground_data;
-struct quest;
 struct party_booking_ad_info;
-struct view_data;
-struct eri;
+struct party_data;
+struct pet_data;
+struct quest;
+struct s_vending;
 struct skill_cd;
-struct channel_data;
+struct skill_unit;
+struct unit_data;
+struct view_data;
 
 /**
  * Defines
@@ -49,6 +47,12 @@ struct channel_data;
 #define clif_disp_onlyself(sd,mes,len) clif->disp_message( &(sd)->bl, (mes), (len), SELF )
 #define MAX_ROULETTE_LEVEL 7 /** client-defined value **/
 #define MAX_ROULETTE_COLUMNS 9 /** client-defined value **/
+#define RGB2BGR(c) ((c & 0x0000FF) << 16 | (c & 0x00FF00) | (c & 0xFF0000) >> 16)
+
+#define COLOR_RED     0xff0000U
+#define COLOR_GREEN   0x00ff00U
+#define COLOR_WHITE   0xffffffU
+#define COLOR_DEFAULT COLOR_GREEN
 
 /**
  * Enumerations
@@ -385,16 +389,6 @@ enum cashshop_error {
 	ERROR_TYPE_NOT_ALL          = 8, ///< Some items could not be purchased. (ERROR_TYPE_NOT_ALL)
 };
 
-/**
- * Color Table
- **/
-enum clif_colors {
-	COLOR_RED,
-	COLOR_DEFAULT,
-	COLOR_WHITE,
-	COLOR_MAX
-};
-
 enum CASH_SHOP_TABS {
 	CASHSHOP_TAB_NEW        = 0,
 	CASHSHOP_TAB_POPULAR    = 1,
@@ -515,6 +509,30 @@ enum CLOSE_ROULETTE_ACK {
 };
 
 /**
+ * Reason for item deletion (clif->delitem)
+ */
+enum delitem_reason {
+	DELITEM_NORMAL         = 0, /// Normal
+	DELITEM_SKILLUSE       = 1, /// Item used for a skill
+	DELITEM_FAILREFINE     = 2, /// Refine failed
+	DELITEM_MATERIALCHANGE = 3, /// Material changed
+	DELITEM_TOSTORAGE      = 4, /// Moved to storage
+	DELITEM_TOCART         = 5, /// Moved to cart
+	DELITEM_SOLD           = 6, /// Item sold
+	DELITEM_ANALYSIS       = 7, /// Consumed by Four Spirit Analysis (SO_EL_ANALYSIS) skill
+};
+
+/*
+* Merge items reasons
+*/
+
+enum mergeitem_reason {
+	MERGEITEM_SUCCESS =  0x0,
+	MERGEITEM_FAILD =  0x1,
+	MERGEITEM_MAXCOUNTFAILD =  0x2,
+};
+
+/**
  * Structures
  **/
 typedef void (*pFunc)(int, struct map_session_data *); //cant help but put it first
@@ -534,11 +552,10 @@ struct cdelayed_damage {
 	struct block_list bl;
 };
 
-/**
- * Vars
- **/
-struct s_packet_db packet_db[MAX_PACKET_DB + 1];
-unsigned int color_table[COLOR_MAX];
+struct merge_item {
+    int16 position;
+    int16 nameid;
+};
 
 /**
  * Clif.c Interface
@@ -580,6 +597,7 @@ struct clif_interface {
 	int (*send_sub) (struct block_list *bl, va_list ap);
 	int (*send_actual) (int fd, void *buf, int len);
 	int (*parse) (int fd);
+	const struct s_packet_db *(*packet) (int packet_id);
 	unsigned short (*parse_cmd) ( int fd, struct map_session_data *sd );
 	unsigned short (*decrypt_cmd) ( int cmd, struct map_session_data *sd );
 	/* auth */
@@ -594,6 +612,8 @@ struct clif_interface {
 	void (*dropitem) (struct map_session_data *sd,int n,int amount);
 	void (*delitem) (struct map_session_data *sd,int n,int amount, short reason);
 	void (*takeitem) (struct block_list* src, struct block_list* dst);
+	void (*item_equip) (short idx, struct EQUIPITEM_INFO *p, struct item *i, struct item_data *id, int eqp_pos);
+	void (*item_normal) (short idx, struct NORMALITEM_INFO *p, struct item *i, struct item_data *id);
 	void (*arrowequip) (struct map_session_data *sd,int val);
 	void (*arrow_fail) (struct map_session_data *sd,int type);
 	void (*use_card) (struct map_session_data *sd,int idx);
@@ -816,7 +836,8 @@ struct clif_interface {
 	void (*disp_message) (struct block_list* src, const char* mes, size_t len, enum send_target target);
 	void (*broadcast) (struct block_list* bl, const char* mes, size_t len, int type, enum send_target target);
 	void (*broadcast2) (struct block_list* bl, const char* mes, size_t len, unsigned int fontColor, short fontType, short fontSize, short fontAlign, short fontY, enum send_target target);
-	void (*messagecolor) (struct block_list* bl, unsigned int color, const char* msg);
+	void (*messagecolor_self) (int fd, uint32 color, const char *msg);
+	void (*messagecolor) (struct block_list* bl, uint32 color, const char* msg);
 	void (*disp_overhead) (struct block_list *bl, const char* mes);
 	void (*msgtable) (struct map_session_data* sd, unsigned short msg_id);
 	void (*msgtable_num) (struct map_session_data *sd, unsigned short msg_id, int value);
@@ -825,7 +846,6 @@ struct clif_interface {
 	void (*messageln) (const int fd, const char* mes);
 	/* message+s(printf) */
 	void (*messages) (const int fd, const char *mes, ...) __attribute__((format(printf, 2, 3)));
-	int (*colormes) (int fd, enum clif_colors color, const char* msg);
 	bool (*process_message) (struct map_session_data *sd, int format, char **name_, size_t *namelen_, char **message_, size_t *messagelen_);
 	void (*wisexin) (struct map_session_data *sd,int type,int flag);
 	void (*wisall) (struct map_session_data *sd,int type,int flag);
@@ -1055,6 +1075,12 @@ struct clif_interface {
 	/* */
 	bool (*parse_roulette_db) (void);
 	void (*roulette_generate_ack) (struct map_session_data *sd, unsigned char result, short stage, short prizeIdx, short bonusItemID);
+	/* Merge Items */
+	void (*openmergeitem) (int fd, struct map_session_data *sd);
+	void (*cancelmergeitem) (int fd, struct map_session_data *sd);
+	int (*comparemergeitem) (const void *a, const void *b);
+	void (*ackmergeitems) (int fd, struct map_session_data *sd);
+
 	/*------------------------
 	 *- Parse Incoming Packet
 	 *------------------------*/
@@ -1292,12 +1318,15 @@ struct clif_interface {
 	/* NPC Market (by Ind after an extensive debugging of the packet, only possible thanks to Yommy <3) */
 	void (*pNPCMarketClosed) (int fd, struct map_session_data *sd);
 	void (*pNPCMarketPurchase) (int fd, struct map_session_data *sd);
+	/* */
+	void (*add_random_options) (unsigned char* buf, struct item* item);
+	void (*pHotkeyRowShift) (int fd, struct map_session_data *sd);
 };
-
-struct clif_interface *clif;
 
 #ifdef HERCULES_CORE
 void clif_defaults(void);
 #endif // HERCULES_CORE
+
+HPShared struct clif_interface *clif;
 
 #endif /* MAP_CLIF_H */

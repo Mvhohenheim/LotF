@@ -6,23 +6,26 @@
 
 #include "pincode.h"
 
+#include "char/char.h"
+#include "common/cbasetypes.h"
+#include "common/db.h"
+#include "common/mmo.h"
+#include "common/nullpo.h"
+#include "common/random.h"
+#include "common/showmsg.h"
+#include "common/socket.h"
+#include "common/strlib.h"
+
 #include <stdlib.h>
 
-#include "char.h"
-#include "../common/cbasetypes.h"
-#include "../common/mmo.h"
-#include "../common/nullpo.h"
-#include "../common/random.h"
-#include "../common/showmsg.h"
-#include "../common/socket.h"
-#include "../common/strlib.h"
-
 struct pincode_interface pincode_s;
+struct pincode_interface *pincode;
 
 void pincode_handle (int fd, struct char_session_data* sd) {
-	struct online_char_data* character = (struct online_char_data*)idb_get(chr->online_char_db, sd->account_id);
+	struct online_char_data* character;
 
 	nullpo_retv(sd);
+	character = (struct online_char_data*)idb_get(chr->online_char_db, sd->account_id);
 	if( character && character->pincode_enable > pincode->charselect ){
 		character->pincode_enable = pincode->charselect * 2;
 	}else{

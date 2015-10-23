@@ -5,23 +5,21 @@
 #ifndef MAP_PC_H
 #define MAP_PC_H
 
-#include "../config/core.h" // AUTOLOOTITEM_SIZE, RENEWAL, SECURE_NPCTIMEOUT
-
-#include "battle.h" // battle
-#include "battleground.h" // enum bg_queue_types
-#include "buyingstore.h"  // struct s_buyingstore
-#include "itemdb.h" // MAX_ITEMDELAYS
-#include "log.h" // struct e_log_pick_type
-#include "map.h" // RC_MAX, ELE_MAX
-#include "pc_groups.h" // GroupSettings
-#include "script.h" // struct reg_db
-#include "searchstore.h"  // struct s_search_store_info
-#include "status.h" // enum sc_type, OPTION_*
-#include "unit.h" // struct unit_data, struct view_data
-#include "vending.h" // struct s_vending
-#include "../common/cbasetypes.h"
-#include "../common/ers.h" // struct eri
-#include "../common/mmo.h" // JOB_*, MAX_FAME_LIST, struct fame_list, struct mmo_charstatus, NEW_CARTS
+#include "map/battle.h" // battle
+#include "map/battleground.h" // enum bg_queue_types
+#include "map/buyingstore.h"  // struct s_buyingstore
+#include "map/itemdb.h" // MAX_ITEMDELAYS
+#include "map/log.h" // struct e_log_pick_type
+#include "map/map.h" // RC_MAX, ELE_MAX
+#include "map/pc_groups.h" // GroupSettings
+#include "map/script.h" // struct reg_db
+#include "map/searchstore.h"  // struct s_search_store_info
+#include "map/status.h" // enum sc_type, OPTION_*
+#include "map/unit.h" // struct unit_data, struct view_data
+#include "map/vending.h" // struct s_vending
+#include "common/hercules.h"
+#include "common/ers.h" // struct eri
+#include "common/mmo.h" // JOB_*, MAX_FAME_LIST, struct fame_list, struct mmo_charstatus, NEW_CARTS
 
 /**
  * Defines
@@ -29,7 +27,8 @@
 #define MAX_PC_BONUS 10
 #define MAX_PC_SKILL_REQUIRE 5
 #define MAX_PC_FEELHATE 3
-#define PVP_CALCRANK_INTERVAL 1000 // PVP calculation interval
+#define MAX_PC_DEVOTION 5          ///< Max amount of devotion targets
+#define PVP_CALCRANK_INTERVAL 1000 ///< PVP calculation interval
 
 //Equip indexes constants. (eg: sd->equip_index[EQI_AMMO] returns the index
 //where the arrows are equipped)
@@ -57,6 +56,20 @@ enum equip_index {
 	EQI_SHADOW_ACC_L,
 	EQI_MAX
 };
+
+enum pc_unequipitem_flag {
+	PCUNEQUIPITEM_NONE   = 0x0, ///< Just unequip
+	PCUNEQUIPITEM_RECALC = 0x1, ///< Recalculate status after unequipping
+	PCUNEQUIPITEM_FORCE  = 0x2, ///< Force unequip
+};
+
+enum pc_resetskill_flag {
+	PCRESETSKILL_NONE    = 0x0,
+	PCRESETSKILL_RESYNC  = 0x1, // perform block resync and status_calc call
+	PCRESETSKILL_RECOUNT = 0x2, // just count total amount of skill points used by player, do not really reset
+	PCRESETSKILL_CHSEX   = 0x4, // just reset the skills if the player class is a bard/dancer type (for changesex.)
+};
+
 struct weapon_data {
 	int atkmods[3];
 BEGIN_ZEROED_BLOCK; // all the variables within this block get zero'ed in each call of status_calc_pc
@@ -144,7 +157,7 @@ struct map_session_data {
 		unsigned int arrow_atk : 1;
 		unsigned int gangsterparadise : 1;
 		unsigned int rest : 1;
-		unsigned int storage_flag : 2; //0: closed, 1: Normal Storage open, 2: guild storage open [Skotlex]
+		unsigned int storage_flag : 2; // @see enum storage_flag
 		unsigned int snovice_dead_flag : 1; //Explosion spirits on death: 0 off, 1 used.
 		unsigned int abra_flag : 2; // Abracadabra bugfix by Aru
 		unsigned int autocast : 1; // Autospell flag [Inkfish]
@@ -191,6 +204,7 @@ struct map_session_data {
 		unsigned int itemcheck : 1;
 		unsigned int standalone : 1;/* [Ind/Hercules <3] */
 		unsigned int loggingout : 1;
+		unsigned int warp_clean : 1;
 	} state;
 	struct {
 		unsigned char no_weapon_damage, no_magic_damage, no_misc_damage;
@@ -377,7 +391,7 @@ END_ZEROED_BLOCK;
 	unsigned char mission_count; //Stores the bounty kill count for TK_MISSION
 	short mission_mobid; //Stores the target mob_id for TK_MISSION
 	int die_counter; //Total number of times you've died
-	int devotion[5]; //Stores the account IDs of chars devoted to.
+	int devotion[MAX_PC_DEVOTION]; //Stores the account IDs of chars devoted to.
 	int trade_partner;
 	struct {
 		struct {
@@ -409,11 +423,11 @@ END_ZEROED_BLOCK;
 	struct mercenary_data *md;
 	struct elemental_data *ed;
 
-	struct{
+	struct {
 		int  m; //-1 - none, other: map index corresponding to map name.
 		unsigned short index; //map index
-	} feel_map[3];// 0 - Sun; 1 - Moon; 2 - Stars
-	short hate_mob[3];
+	} feel_map[MAX_PC_FEELHATE];// 0 - Sun; 1 - Moon; 2 - Stars
+	short hate_mob[MAX_PC_FEELHATE];
 
 	int pvp_timer;
 	short pvp_point;
@@ -525,10 +539,7 @@ END_ZEROED_BLOCK;
 	unsigned short (*parse_cmd_func)(int fd, struct map_session_data *sd); ///< parse_cmd_func used by this player
 
 	unsigned char delayed_damage;//ref. counter bugreport:7307 [Ind/Hercules]
-
-	/* HPM Custom Struct */
-	struct HPluginData **hdata;
-	unsigned int hdatac;
+	struct hplugin_data_store *hdata; ///< HPM Plugin Data Store
 
 	/* expiration_time timer id */
 	int expiration_tid;
@@ -555,7 +566,7 @@ END_ZEROED_BLOCK;
 	} roulette;
 
 	uint8 lang_id;
-	
+
 	// temporary debugging of bug #3504
 	const char* delunit_prevfile;
 	int delunit_prevline;
@@ -727,12 +738,23 @@ enum e_pc_autotrade_update_action {
 };
 
 /**
+ * Flag values for pc->skill
+ */
+enum pc_skill_flag {
+	SKILL_GRANT_PERMANENT     = 0, // Grant permanent skill to be bound to skill tree
+	SKILL_GRANT_TEMPORARY     = 1, // Grant an item skill (temporary)
+	SKILL_GRANT_TEMPSTACK     = 2, // Like 1, except the level granted can stack with previously learned level.
+	SKILL_GRANT_UNCONDITIONAL = 3, // Grant skill unconditionally and forever (persistent to job changes and skill resets)
+};
+
+/**
  * Used to temporarily remember vending data
  **/
 struct autotrade_vending {
 	struct item list[MAX_VENDING];
 	struct s_vending vending[MAX_VENDING];
 	unsigned char vend_num;
+	struct hplugin_data_store *hdata; ///< HPM Plugin Data Store
 };
 
 /*=====================================
@@ -855,6 +877,8 @@ END_ZEROED_BLOCK; /* End */
 	int (*skill) (struct map_session_data *sd, int id, int level, int flag);
 
 	int (*insert_card) (struct map_session_data *sd,int idx_card,int idx_equip);
+	bool (*can_insert_card) (struct map_session_data* sd, int idx_card);
+	bool (*can_insert_card_into) (struct map_session_data* sd, int idx_card, int idx_equip);
 
 	int (*steal_item) (struct map_session_data *sd,struct block_list *bl, uint16 skill_lv);
 	int (*steal_coin) (struct map_session_data *sd,struct block_list *bl);
@@ -887,7 +911,7 @@ END_ZEROED_BLOCK; /* End */
 	int (*resetfeel) (struct map_session_data *sd);
 	int (*resethate) (struct map_session_data *sd);
 	int (*equipitem) (struct map_session_data *sd,int n,int req_pos);
-	void (*equipitem_pos) (struct map_session_data *sd, struct item_data *id, int pos);
+	void (*equipitem_pos) (struct map_session_data *sd, struct item_data *id, int n, int pos);
 	int (*unequipitem) (struct map_session_data *sd,int n,int flag);
 	void (*unequipitem_pos) (struct map_session_data *sd, int n, int pos);
 	int (*checkitem) (struct map_session_data *sd);
@@ -957,6 +981,7 @@ END_ZEROED_BLOCK; /* End */
 
 	int (*addspiritball) (struct map_session_data *sd,int interval,int max);
 	int (*delspiritball) (struct map_session_data *sd,int count,int type);
+	int (*getmaxspiritball) (struct map_session_data *sd, int min);
 	void (*addfame) (struct map_session_data *sd,int count);
 	unsigned char (*famerank) (int char_id, int job);
 	int (*set_hate_mob) (struct map_session_data *sd, int pos, struct block_list *bl);
@@ -1039,14 +1064,15 @@ END_ZEROED_BLOCK; /* End */
 	void (*autotrade_start) (struct map_session_data *sd);
 	void (*autotrade_prepare) (struct map_session_data *sd);
 	void (*autotrade_populate) (struct map_session_data *sd);
+	int (*autotrade_final) (DBKey key, DBData *data, va_list ap);
 
 	int (*check_job_name) (const char *name);
 };
 
-struct pc_interface *pc;
-
 #ifdef HERCULES_CORE
 void pc_defaults(void);
 #endif // HERCULES_CORE
+
+HPShared struct pc_interface *pc;
 
 #endif /* MAP_PC_H */
