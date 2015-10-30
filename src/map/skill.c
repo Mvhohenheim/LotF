@@ -965,7 +965,7 @@ int skill_additional_effect(struct block_list* src, struct block_list *bl, uint1
 			break;
 
 		case BD_LULLABY:
-			sc_start(src,bl,SC_SLEEP,15,skill_lv,skill->get_time2(skill_id,skill_lv));
+			sc_start(src,bl,SC_SLEEP,100,skill_lv,skill->get_time2(skill_id,skill_lv));
 			break;
 
 		case DC_UGLYDANCE:
@@ -2818,7 +2818,7 @@ int skill_attack(int attack_type, struct block_list* src, struct block_list *dsr
 			}
 				break;
 			case WM_METALICSOUND:
-				status_zap(bl, 0, damage*100/(100*(110-pc->checkskill(sd,WM_LESSON)*10)));
+				status_zap(bl, 0, damage*100/(100*(110-pc->checkskill(sd,BA_MUSICALLESSON || DC_DANCINGLESSON)*10)));
 				break;
 			case SR_TIGERCANNON:
 				status_zap(bl, 0, damage/10); // 10% of damage dealt
@@ -4636,13 +4636,13 @@ int skill_castend_damage_id(struct block_list* src, struct block_list *bl, uint1
 		case WM_SOUND_OF_DESTRUCTION:
 			{
 				struct status_change *tsc = status->get_sc(bl);
-				if( tsc && tsc->count && ( tsc->data[SC_SWING] || tsc->data[SC_SYMPHONY_LOVE] || tsc->data[SC_MOONLIT_SERENADE] ||
+				if( /*tsc && tsc->count && ( tsc->data[SC_SWING] || tsc->data[SC_SYMPHONY_LOVE] || tsc->data[SC_MOONLIT_SERENADE] ||
 						tsc->data[SC_RUSH_WINDMILL] || tsc->data[SC_ECHOSONG] || tsc->data[SC_HARMONIZE] ||
 						tsc->data[SC_SIREN] || tsc->data[SC_DEEP_SLEEP] || tsc->data[SC_SIRCLEOFNATURE] ||
 						tsc->data[SC_GLOOMYDAY] || tsc->data[SC_SONG_OF_MANA] ||
 						tsc->data[SC_DANCE_WITH_WUG] || tsc->data[SC_SATURDAY_NIGHT_FEVER] || tsc->data[SC_LERADS_DEW] ||
-						tsc->data[SC_MELODYOFSINK] || tsc->data[SC_BEYOND_OF_WARCRY] || tsc->data[SC_UNLIMITED_HUMMING_VOICE] ) &&
-						rnd()%100 < 4 * skill_lv + 2 * (sd ? pc->checkskill(sd,WM_LESSON) : 10) + 10 * battle->calc_chorusbonus(sd)) {
+						tsc->data[SC_MELODYOFSINK] || tsc->data[SC_BEYOND_OF_WARCRY] || tsc->data[SC_UNLIMITED_HUMMING_VOICE] ) &&*/
+						rnd()%100 < 10 * skill_lv + 2 * (sd ? pc->checkskill(sd,WM_LESSON) : 10) + 10 * battle->calc_chorusbonus(sd)) {
 					skill->attack(BF_MISC,src,src,bl,skill_id,skill_lv,tick,flag);
 					status->change_start(src,bl,SC_STUN,10000,skill_lv,0,0,0,skill->get_time(skill_id,skill_lv),SCFLAG_FIXEDRATE);
 					status_change_end(bl, SC_SWING, INVALID_TIMER);
@@ -7672,7 +7672,7 @@ int skill_castend_nodamage_id(struct block_list *src, struct block_list *bl, uin
 		case CG_LONGINGFREEDOM:
 			{
 				if (tsc && !tsce && (tsce=tsc->data[SC_DANCING]) != NULL && tsce->val4
-					&& (tsce->val1&0xFFFF) != CG_MOONLIT) //Can't use Longing for Freedom while under Moonlight Petals. [Skotlex]
+					&& (tsce->val1&0xFFFF) /*!= CG_MOONLIT*/) //Can't use Longing for Freedom while under Moonlight Petals. [Skotlex]
 				{
 					clif->skill_nodamage(src,bl,skill_id,skill_lv,
 						sc_start(src,bl,type,100,skill_lv,skill->get_time(skill_id,skill_lv)));
@@ -9230,7 +9230,7 @@ int skill_castend_nodamage_id(struct block_list *src, struct block_list *bl, uin
 			if( flag&1 )
 				sc_start2(src,bl,type,100,skill_lv,chorusbonus,skill->get_time(skill_id,skill_lv));
 			else if( sd ) {
-				if ( rnd()%100 < 15 + 5 * skill_lv + 5 * chorusbonus ) {
+				if ( rnd()%100 < 15 + 15 * skill_lv + 5 * chorusbonus ) {
 					map->foreachinrange(skill->area_sub, src, skill->get_splash(skill_id,skill_lv),BL_PC, src, skill_id, skill_lv, tick, flag|BCT_ENEMY|1, skill->castend_nodamage_id);
 					clif->skill_nodamage(src,bl,skill_id,skill_lv,1);
 				}
@@ -10264,6 +10264,15 @@ int skill_castend_pos2(struct block_list* src, int x, int y, uint16 skill_id, ui
 			r = skill->get_splash(skill_id, skill_lv);
 			map->foreachinarea(skill->area_sub, src->m, x-r, y-r, x+r, y+r, BL_CHAR,
 			                   src, skill_id, skill_lv, tick, flag|BCT_ENEMY|1, skill->castend_damage_id);
+			if (unit->movepos(src, x, y, 1, 1)) {
+	#if PACKETVER >= 20111005
+				clif->snap(src, src->x, src->y);
+	#else
+				clif->skill_poseffect(src,skill_id,skill_lv,src->x,src->y,tick);
+	#endif
+				if (sd)
+					skill->blockpc_start (sd, MO_EXTREMITYFIST, 2000);
+			}
 			break;
 
 		case SA_VOLCANO:
@@ -14530,6 +14539,10 @@ struct skill_condition skill_get_requirement(struct map_session_data* sd, uint16
 			break;
 		case MO_BODYRELOCATION:
 			if( sc && sc->data[SC_EXPLOSIONSPIRITS] )
+				req.spiritball = 0;
+			break;
+		case SR_RIDEINLIGHTNING:
+			if( sc && sc->data[SC_LIGHTNINGWALK] )
 				req.spiritball = 0;
 			break;
 		case MO_EXTREMITYFIST:

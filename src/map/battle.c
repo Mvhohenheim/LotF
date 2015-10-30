@@ -1763,7 +1763,7 @@ int battle_calc_skillratio(int attack_type, struct block_list *src, struct block
 						skillratio = 0;
 					break;
 				case WM_METALICSOUND:
-					skillratio = 120 * skill_lv + 60 * ( sd? pc->checkskill(sd, WM_LESSON) : 10 );
+					skillratio = 120 * skill_lv + 60 * ( sd? pc->checkskill(sd, BA_MUSICALLESSON || DC_DANCINGLESSON ) : 10 );
 					RE_LVL_DMOD(100);
 					break;
 				case WM_REVERBERATION_MAGIC:
@@ -3022,8 +3022,13 @@ int64 battle_calc_damage(struct block_list *src,struct block_list *bl,struct Dam
 #endif
 
 		if(sc->data[SC_DEFENDER] &&
+#ifdef RENEWAL
 			((flag&(BF_LONG|BF_WEAPON)) == (BF_LONG|BF_WEAPON) || skill_id == CR_ACIDDEMONSTRATION))
+#else
+			(flag&(BF_LONG|BF_WEAPON)) == (BF_LONG|BF_WEAPON)) // In pre-re Defender doesn't reduce damage from Acid Demonstration
+#endif
 			damage = damage * ( 100 - sc->data[SC_DEFENDER]->val2 ) / 100;
+
 #ifndef RENEWAL
 		if(sc->data[SC_GS_ADJUSTMENT] &&
 			(flag&(BF_LONG|BF_WEAPON)) == (BF_LONG|BF_WEAPON))

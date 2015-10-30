@@ -918,6 +918,8 @@ void initChangeTables(void) {
 	status->dbs->IconChangeTable[SC_SUPER_STAR] = SI_SUPER_STAR;
 	status->dbs->IconChangeTable[SC_STRANGELIGHTS] = SI_STRANGELIGHTS;
 	status->dbs->IconChangeTable[SC_DECORATION_OF_MUSIC] = SI_DECORATION_OF_MUSIC;
+	status->dbs->IconChangeTable[SC_LJOSALFAR] = SI_LJOSALFAR;
+	status->dbs->IconChangeTable[SC_MERMAID_LONGING] = SI_MERMAID_LONGING;
 
 	//Other SC which are not necessarily associated to skills.
 	status->dbs->ChangeFlagTable[SC_ATTHASTE_POTION1] = SCB_ASPD;
@@ -1024,6 +1026,8 @@ void initChangeTables(void) {
 	status->dbs->ChangeFlagTable[SC_SUPER_STAR] |= SCB_NONE;
 	status->dbs->ChangeFlagTable[SC_STRANGELIGHTS] |= SCB_NONE;
 	status->dbs->ChangeFlagTable[SC_DECORATION_OF_MUSIC] |= SCB_NONE;
+	status->dbs->ChangeFlagTable[SC_LJOSALFAR] |= SCB_NONE;
+	status->dbs->ChangeFlagTable[SC_MERMAID_LONGING] |= SCB_NONE;
 
 	/* status->dbs->DisplayType Table [Ind/Hercules] */
 	status->dbs->DisplayType[SC_ALL_RIDING]          = true;
@@ -1052,6 +1056,8 @@ void initChangeTables(void) {
 	status->dbs->DisplayType[SC_SUPER_STAR]          = true;
 	status->dbs->DisplayType[SC_STRANGELIGHTS]       = true;
 	status->dbs->DisplayType[SC_DECORATION_OF_MUSIC] = true;
+	status->dbs->DisplayType[SC_LJOSALFAR]           = true;
+	status->dbs->DisplayType[SC_MERMAID_LONGING]     = true;
 
 	if( !battle_config.display_hallucination ) //Disable Hallucination.
 		status->dbs->IconChangeTable[SC_ILLUSION] = SI_BLANK;
@@ -1713,10 +1719,10 @@ int status_check_skilluse(struct block_list *src, struct block_list *target, uin
 				if (!flag && ( //Blocked only from using the skill (stuff like autospell may still go through
 					sc->data[SC_SILENCE] ||
 					sc->data[SC_STEELBODY] ||
-					//sc->data[SC_BERSERK] ||
+					/*sc->data[SC_BERSERK] ||*/
 					sc->data[SC_OBLIVIONCURSE] ||
 					sc->data[SC_WHITEIMPRISON] ||
-					sc->data[SC__INVISIBILITY] ||
+					/*sc->data[SC__INVISIBILITY] ||*/
 					(sc->data[SC_COLD] && src->type != BL_MOB) ||
 					sc->data[SC__IGNORANCE] ||
 					sc->data[SC_DEEP_SLEEP] ||
@@ -4131,11 +4137,11 @@ unsigned short status_calc_str(struct block_list *bl, struct status_change *sc, 
 	if(sc->data[SC_FULL_THROTTLE])
 		str += str * 20 / 100;
 	if(sc->data[SC_HARMONIZE]) {
-		str -= sc->data[SC_HARMONIZE]->val2;
+		str += sc->data[SC_HARMONIZE]->val2;
 		return (unsigned short)cap_value(str,0,USHRT_MAX);
 	}
 	if(sc->data[SC_BEYOND_OF_WARCRY])
-		str += sc->data[SC_BEYOND_OF_WARCRY]->val3;
+		str -= sc->data[SC_BEYOND_OF_WARCRY]->val3;
 	if(sc->data[SC_INCALLSTATUS])
 		str += sc->data[SC_INCALLSTATUS]->val1;
 	if(sc->data[SC_CHASEWALK2])
@@ -4190,7 +4196,7 @@ unsigned short status_calc_agi(struct block_list *bl, struct status_change *sc, 
 	if(sc->data[SC_FULL_THROTTLE])
 		agi += agi * 20 / 100;
 	if(sc->data[SC_HARMONIZE]) {
-		agi -= sc->data[SC_HARMONIZE]->val2;
+		agi += sc->data[SC_HARMONIZE]->val2;
 		return (unsigned short)cap_value(agi,0,USHRT_MAX);
 	}
 	if(sc->data[SC_CONCENTRATION] && !sc->data[SC_QUAGMIRE])
@@ -4248,7 +4254,7 @@ unsigned short status_calc_vit(struct block_list *bl, struct status_change *sc, 
 	if(sc->data[SC_FULL_THROTTLE])
 		vit += vit * 20 / 100;
 	if(sc->data[SC_HARMONIZE]) {
-		vit -= sc->data[SC_HARMONIZE]->val2;
+		vit += sc->data[SC_HARMONIZE]->val2;
 		return (unsigned short)cap_value(vit,0,USHRT_MAX);
 	}
 	if(sc->data[SC_INCALLSTATUS])
@@ -4296,7 +4302,7 @@ unsigned short status_calc_int(struct block_list *bl, struct status_change *sc, 
 	if(sc->data[SC_FULL_THROTTLE])
 		int_ += int_ * 20 / 100;
 	if(sc->data[SC_HARMONIZE]) {
-		int_ -= sc->data[SC_HARMONIZE]->val2;
+		int_ += sc->data[SC_HARMONIZE]->val2;
 		return (unsigned short)cap_value(int_,0,USHRT_MAX);
 	}
 	if(sc->data[SC_MELODYOFSINK])
@@ -4358,7 +4364,7 @@ unsigned short status_calc_dex(struct block_list *bl, struct status_change *sc, 
 	if(sc->data[SC_FULL_THROTTLE])
 		dex += dex * 20 / 100;
 	if(sc->data[SC_HARMONIZE]) {
-		dex -= sc->data[SC_HARMONIZE]->val2;
+		dex += sc->data[SC_HARMONIZE]->val2;
 		return (unsigned short)cap_value(dex,0,USHRT_MAX);
 	}
 	if(sc->data[SC_CONCENTRATION] && !sc->data[SC_QUAGMIRE])
@@ -4418,7 +4424,7 @@ unsigned short status_calc_luk(struct block_list *bl, struct status_change *sc, 
 	if(sc->data[SC_FULL_THROTTLE])
 		luk += luk * 20 / 100;
 	if(sc->data[SC_HARMONIZE]) {
-		luk -= sc->data[SC_HARMONIZE]->val2;
+		luk += sc->data[SC_HARMONIZE]->val2;
 		return (unsigned short)cap_value(luk,0,USHRT_MAX);
 	}
 	if(sc->data[SC_CURSE])
@@ -4733,7 +4739,7 @@ signed short status_calc_critical(struct block_list *bl, struct status_change *s
 	if(sc->data[SC__UNLUCKY])
 		critical -= critical * sc->data[SC__UNLUCKY]->val2 / 100;
 	if(sc->data[SC_BEYOND_OF_WARCRY])
-		critical += 10 * sc->data[SC_BEYOND_OF_WARCRY]->val3;
+		critical -= 10 * sc->data[SC_BEYOND_OF_WARCRY]->val3;
 
 	return (short)cap_value(critical,10,SHRT_MAX);
 }
@@ -5818,7 +5824,7 @@ unsigned char status_calc_attack_element(struct block_list *bl, struct status_ch
 		return ELE_HOLY;
 	if(sc->data[SC_PROPERTYDARK])
 		return ELE_DARK;
-	if(sc->data[SC_PROPERTYTELEKINESIS] || sc->data[SC__INVISIBILITY])
+	if(sc->data[SC_PROPERTYTELEKINESIS] /*|| sc->data[SC__INVISIBILITY]*/)
 		return ELE_GHOST;
 	if(sc->data[SC_TIDAL_WEAPON_OPTION] || sc->data[SC_TIDAL_WEAPON] )
 		return ELE_WATER;
@@ -7346,22 +7352,22 @@ int status_change_start(struct block_list *src, struct block_list *bl, enum sc_t
 		case SC_MOONLIT_SERENADE:
 		case SC_RUSH_WINDMILL:
 		case SC_ECHOSONG:
-		case SC_HARMONIZE:
-		case SC_FRIGG_SONG:
+/*		case SC_HARMONIZE:
+*/		case SC_FRIGG_SONG:
 			if (type != SC_SWING) status_change_end(bl, SC_SWING, INVALID_TIMER);
 			if (type != SC_SYMPHONY_LOVE) status_change_end(bl, SC_SYMPHONY_LOVE, INVALID_TIMER);
 			if (type != SC_MOONLIT_SERENADE) status_change_end(bl, SC_MOONLIT_SERENADE, INVALID_TIMER);
 			if (type != SC_RUSH_WINDMILL) status_change_end(bl, SC_RUSH_WINDMILL, INVALID_TIMER);
 			if (type != SC_ECHOSONG) status_change_end(bl, SC_ECHOSONG, INVALID_TIMER);
-			if (type != SC_HARMONIZE) status_change_end(bl, SC_HARMONIZE, INVALID_TIMER);
-			if (type != SC_FRIGG_SONG) status_change_end(bl, SC_FRIGG_SONG, INVALID_TIMER);
+/*			if (type != SC_HARMONIZE) status_change_end(bl, SC_HARMONIZE, INVALID_TIMER);
+*/			if (type != SC_FRIGG_SONG) status_change_end(bl, SC_FRIGG_SONG, INVALID_TIMER);
 			break;
 		//Group B Status
 		case SC_SIREN:
 		case SC_DEEP_SLEEP:
 		case SC_SIRCLEOFNATURE:
-		case SC_LERADS_DEW:
-		case SC_MELODYOFSINK:
+/*		case SC_LERADS_DEW:
+*/		case SC_MELODYOFSINK:
 		case SC_BEYOND_OF_WARCRY:
 		case SC_UNLIMITED_HUMMING_VOICE:
 		case SC_GLOOMYDAY:
@@ -7370,8 +7376,8 @@ int status_change_start(struct block_list *src, struct block_list *bl, enum sc_t
 			if (type != SC_SIREN) status_change_end(bl, SC_SIREN, INVALID_TIMER);
 			if (type != SC_DEEP_SLEEP) status_change_end(bl, SC_DEEP_SLEEP, INVALID_TIMER);
 			if (type != SC_SIRCLEOFNATURE) status_change_end(bl, SC_SIRCLEOFNATURE, INVALID_TIMER);
-			if (type != SC_LERADS_DEW) status_change_end(bl, SC_LERADS_DEW, INVALID_TIMER);
-			if (type != SC_MELODYOFSINK) status_change_end(bl, SC_MELODYOFSINK, INVALID_TIMER);
+/*			if (type != SC_LERADS_DEW) status_change_end(bl, SC_LERADS_DEW, INVALID_TIMER);
+*/			if (type != SC_MELODYOFSINK) status_change_end(bl, SC_MELODYOFSINK, INVALID_TIMER);
 			if (type != SC_BEYOND_OF_WARCRY) status_change_end(bl, SC_BEYOND_OF_WARCRY, INVALID_TIMER);
 			if (type != SC_UNLIMITED_HUMMING_VOICE) status_change_end(bl, SC_UNLIMITED_HUMMING_VOICE, INVALID_TIMER);
 			if (type != SC_GLOOMYDAY) status_change_end(bl, SC_GLOOMYDAY, INVALID_TIMER);
@@ -8681,15 +8687,15 @@ int status_change_start(struct block_list *src, struct block_list *bl, enum sc_t
 				tick_time = 2000; // [GodLesZ] tick time
 				break;
 			case SC_SIRCLEOFNATURE:
-				val2 = 40 * val1;//HP recovery
+				val2 = 100 * val1;//HP recovery
 				val3 = 4 * val1;//SP drain
 				val4 = tick / 1000;
 				tick_time = 1000; // [GodLesZ] tick time
 				break;
 			case SC_SONG_OF_MANA:
-				val3 = 10 + 5 * val2;
-				val4 = tick/5000;
-				tick_time = 5000; // [GodLesZ] tick time
+				val3 = 20 + 5 * val2;
+				val4 = tick/1000;
+				tick_time = 1000; // [GodLesZ] tick time
 				break;
 			case SC_SATURDAY_NIGHT_FEVER:
 				/*val2 = 12000 - 2000 * val1;//HP/SP Drain Timer
@@ -8728,7 +8734,7 @@ int status_change_start(struct block_list *src, struct block_list *bl, enum sc_t
 				val4 = 20 + 10 * val2;//Fixed Cast Time Reduction
 				break;
 			case SC_LERADS_DEW:
-				val3 = 200 * val1 + 300 * val2;//MaxHP Increase
+				val3 = 2000 * val1 + 300 * val2;//MaxHP Increase
 				break;
 			case SC_MELODYOFSINK:
 				val3 = val1 * (2 + val2);//INT Reduction. Formula Includes Caster And 2nd Performer.
@@ -11105,7 +11111,7 @@ int status_change_timer(int tid, int64 tick, int id, intptr_t data) {
 		case SC_SONG_OF_MANA:
 			if( --(sce->val4) >= 0 ) {
 				status->heal(bl,0,sce->val3,3);
-				sc_timer_next(5000 + tick, status->change_timer, bl->id, data);
+				sc_timer_next(1000 + tick, status->change_timer, bl->id, data);
 				return 0;
 			}
 			break;
