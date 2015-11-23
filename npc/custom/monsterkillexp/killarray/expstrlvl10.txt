@@ -1,0 +1,15 @@
+-	script	monsterkillstrlvl10	FAKE_NPC,{
+OnInit:
+
+	setarray .str, // configure your mobs to trigger random stats
+		PICKY;//PORING, DROPS, POPORING, MARIN, GOLDPORING, METALING, MAGMARING, POURING, MASTERING, ANGELING, GHOSTRING, ARCHANGELING, DEVILING, JEJELING, LITTLE_PORING;
+	.strracesize = getarraysize( .str );
+
+OnNPCKillEvent:
+	if ( readparam(bStr) < 10 ) { // if str is lower than 20
+		while ( killedrid != .str[.@i] && .@i < .strracesize >= 10 ) .@i++;
+		if ( .@i < .strracesize ) {
+			statusup2 bStr, 1;
+		}
+	}
+	end;

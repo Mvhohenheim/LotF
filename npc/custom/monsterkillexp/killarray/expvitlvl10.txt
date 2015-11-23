@@ -1,0 +1,17 @@
+-	script	monsterkillvitlvl10	FAKE_NPC,{
+OnInit:
+
+	setarray .vit, // configure your mobs to trigger random stats
+		FABRE, SPORE, POPORING;
+	.vitracesize = getarraysize( .vit );
+	end;
+
+OnNPCKillEvent:
+	if ( readparam(bVit) < 10 ) { // if str is lower than 20
+		while ( killedrid != .vit[.@i] && .@i < .vitracesize ) .@i++;
+		if ( .@i < .vitracesize ) {
+			statusup2 bVit, 1;
+		}
+	}
+	end;
+}

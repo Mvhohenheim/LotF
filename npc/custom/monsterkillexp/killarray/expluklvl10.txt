@@ -1,0 +1,17 @@
+-	script	monsterkillluklvl10	FAKE_NPC,{
+OnInit:
+
+	setarray .luk, // configure your mobs to trigger random stats
+		PORING, DROPS, POPORING, LITTLE_PORING;
+	.lukracesize = getarraysize( .luk );
+	end;
+
+OnNPCKillEvent:
+	if ( readparam(bLuk) < 10 ) { // if str is lower than 20
+		while ( killedrid != .luk[.@i] && .@i < .lukracesize ) .@i++;
+		if ( .@i < .lukracesize ) {
+			statusup2 bLuk, 1;
+		}
+	}
+	end;
+}

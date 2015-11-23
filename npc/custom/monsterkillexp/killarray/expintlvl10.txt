@@ -1,0 +1,17 @@
+-	script	monsterkillintlvl10	FAKE_NPC,{
+OnInit:
+
+	setarray .int, // configure your mobs to trigger random stats
+		RODA_FROG, WILOW, POPORING;
+	.intracesize = getarraysize( .int );
+	end;
+
+OnNPCKillEvent:
+	if ( readparam(bInt) < 10 ) { // if str is lower than 20
+		while ( killedrid != .int[.@i] && .@i < .intracesize ) .@i++;
+		if ( .@i < .intracesize ) {
+			statusup2 bInt, 1;
+		}
+	}
+	end;
+}

@@ -1,0 +1,56 @@
+//	kill 10 monsters gets 1 status point
+-	script	PoringKill	FAKE_NPC,{
+OnNPCKillEvent:
+	if ( killedrid == PORING ) 
+	if ( readparam(bLuk) < 5 ) {
+		poringkill++;
+		if ( poringkill == 10 ) {
+			statusup2 bLuk, 1;
+		}
+	}
+
+	if ( readparam(bLuk) >= 5 && readparam(bLuk) <= 10 ) {
+		poringkill++;
+		if ( poringkill == 15 ) {
+			statusup2 bLuk, 1;
+		}
+	}
+	
+	if ( readparam(bLuk) >= 10 && readparam(bLuk) <= 15 ) {
+		poringkill++;
+		if ( poringkill == 25 ) {
+			statusup2 bLuk, 1;
+		}
+	}
+
+	if ( readparam(bLuk) >= 15 && readparam(bLuk) <= 20 ){
+		poringkill++;
+		if ( poringkill == 40 ) {
+			statusup2 bLuk, 1;
+		}
+	}
+
+	if ( readparam(bLuk) >= 20 && readparam(bLuk) <= 25 ) {
+		poringkill++;
+		if ( poringkill == 100 ) {
+			statusup2 bLuk, 1;
+		}
+	}
+	
+	if ( readparam(bLuk) >= 25 && readparam(bLuk) <= 30 ) {
+		poringkill++;
+		if ( poringkill == 150 ) {
+			statusup2 bLuk, 1;
+		}
+	}
+
+	if ( readparam(bLuk) >= 30 && readparam(bLuk) <= 40 ) {
+		poringkill++;
+		if ( poringkill == 200 ) {
+			statusup2 bLuk, 1;
+		}
+	}
+			poringkill = 0;
+
+	end;
+}

@@ -1,0 +1,17 @@
+-	script	monsterkilldexlvl10	FAKE_NPC,{
+OnInit:
+
+	setarray .dex, // configure your mobs to trigger random stats
+		DROPS, ROCKER, POPORING;
+	.dexracesize = getarraysize( .dex );
+	end;
+
+OnNPCKillEvent:
+	if ( readparam(bDex) < 10 ) { // if str is lower than 20
+		while ( killedrid != .dex[.@i] && .@i < .dexracesize ) .@i++;
+		if ( .@i < .dexracesize ) {
+			statusup2 bDex, 1;
+		}
+	}
+	end;
+}

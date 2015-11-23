@@ -1,0 +1,17 @@
+-	script	monsterkillagilvl10	FAKE_NPC,{
+OnInit:
+
+	setarray .agi, // configure your mobs to trigger random stats
+		THIEF_BUG, CONDOR, POPORING;
+	.agiracesize = getarraysize( .agi );
+	end;
+
+OnNPCKillEvent:
+	if ( readparam(bAgi) < 10 ) { // if str is lower than 20
+		while ( killedrid != .agi[.@i] && .@i < .agiracesize ) .@i++;
+		if ( .@i < .agiracesize ) {
+			statusup2 bAgi, 1;
+		}
+	}
+	end;
+}
