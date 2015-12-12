@@ -1,0 +1,120 @@
+//	kill 10 monsters gets 1 status point
+-	script	PoringKill	FAKE_NPC,{
+OnNPCKillEvent:
+	if ( readparam(bLuk) < 5 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 10 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+	if ( readparam(bLuk) >= 5 && readparam(bLuk) <= 10 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 15 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+	
+	if ( readparam(bLuk) >= 10 && readparam(bLuk) <= 15 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 25 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+
+	if ( readparam(bLuk) >= 15 && readparam(bLuk) <= 20 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 40 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+
+	if ( readparam(bLuk) >= 20 && readparam(bLuk) <= 25 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 100 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+	
+	if ( readparam(bLuk) >= 25 && readparam(bLuk) <= 30 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 150 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+
+	if ( readparam(bLuk) >= 30 && readparam(bLuk) <= 40 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 200 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+	
+	if ( readparam(bLuk) >= 40 && readparam(bLuk) <= 50 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 50 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+
+	if ( readparam(bLuk) >= 50 && readparam(bLuk) <= 60 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 60 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+
+	if ( readparam(bLuk) >= 60 && readparam(bLuk) <= 70 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 70 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+
+	if ( readparam(bLuk) >= 70 && readparam(bLuk) <= 80 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 80 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+
+	if ( readparam(bLuk) >= 80 && readparam(bLuk) <= 90 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 90 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+
+	if ( readparam(bLuk) >= 90 && readparam(bLuk) <= 99 )
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 100 ) {
+			statusup2 bLuk, 1;
+			poringkill = 0;
+		}
+	}
+	end;
+}

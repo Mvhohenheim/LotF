@@ -1,0 +1,83 @@
+//	kill 10 poring gets 1 status point
+-	script	kdjshfkshf	FAKE_NPC,{
+OnNPCKillEvent:
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill == 10 ) {
+			StatusPoint++;
+			poringkill = 0;
+		}
+	}
+	end;
+}
+
+function	script	F_ShuffleNumbers	{
+	deletearray getarg(2);
+	.@static = getarg(0);
+	.@range = getarg(1) +1 - .@static;
+	.@count = getarg(3, .@range);
+	if (.@range <= 0 || .@count <= 0)
+		return 0;
+	if (.@count > .@range)
+		.@count = .@range;
+	for (.@i = 0; .@i < .@range; ++.@i)
+		.@temparray[.@i] = .@i;
+	for (.@i = 0; .@i < .@count; ++.@i) {
+		.@[member="Rand"] = rand(.@range);
+		set getelementofarray( getarg(2), .@i ), .@temparray[.@[member="Rand"]] + .@static;
+		.@temparray[.@[member="Rand"]] = .@temparray[--.@range];
+	}
+	return .@count;
+}
+
+//	kill 10 poring gets 1 random stats, if the randomly selected stat has reached maximum, then will select another one
+-	script	kdjshfkshf	FAKE_NPC,{
+OnNPCKillEvent:
+	if ( killedrid == PORING ) {
+		poringkill++;
+		if ( poringkill >= 10 ) {
+			.@range = callfunc( "F_ShuffleNumbers", 0, 5, .@output );
+			if ( Class == Job_Kagerou || Class == Job_Oboro || Class == Job_Rebellion || Class == Job_Super_Novice_E )
+				.@maxstat = getbattleflag("max_extended_parameter");
+			else if ( eaclass() & EAJL_THIRD && eaclass() & EAJL_BABY )
+				.@maxstat = getbattleflag("max_baby_third_parameter");
+			else if ( eaclass() & EAJL_THIRD )
+				.@maxstat = getbattleflag("max_third_parameter");
+			else if ( eaclass() & EAJL_BABY )
+				.@maxstat = getbattleflag("max_baby_parameter");
+			else
+				.@maxstat = getbattleflag("max_parameter");
+			while ( readparam( .@output[.@i] + bStr ) >= .@maxstat && .@i < 6 )
+				.@i++;
+			if ( .@i < 6 )
+				statusup2 .@output[.@i] + bStr, 1;
+			poringkill = 0;
+		}
+	}
+	end;
+}
+
+
+-	script	kdjshfkshf	FAKE_NPC,{
+OnInit:
+	setarray .poring, // configure your mobs to trigger random stats
+		PORING, DROPS, POPORING, MARIN, GOLDPORING, METALING, MAGMARING, POURING, MASTERING, ANGELING, GHOSTRING, ARCHANGELING, DEVILING, JEJELING, LITTLE_PORING;
+	.poringracesize = getarraysize( .poring );
+	end;
+OnNPCKillEvent:
+	if ( sqrt(pow( getmonsterinfo( killedrid, MOB_LV ) - BaseLevel, 2)) <= 10 ) { // if level difference below 10
+		mobkill++; // any mob kill increase the count
+		if ( mobkill >= 10 ) { // if kill any monster more than 10
+			StatusPoint++; // increase status point by 1
+			mobkill = 0;
+		}
+	}
+
+	if ( readparam(bStr) < 20 ) { // if str is lower than 20
+		while ( killedrid != .poring[.@i] && .@i < .poringracesize ) .@i++;
+		if ( .@i < .poringracesize ) {
+			statusup2 bStr, 1;
+		}
+	}
+	end;
+}

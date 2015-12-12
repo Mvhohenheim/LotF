@@ -1,0 +1,66 @@
+//	kill 10 monsters gets 1 status point
+-	script	PoringKill	FAKE_NPC,{
+OnNPCKillEvent:
+	if ( readparam(bVit) < 5 )
+	if ( killedrid == FABRE ) {
+		poringkill++;
+		if ( fabrekill == 10 ) {
+			statusup2 bVit, 1;
+			fabrekill = 0;
+		}
+	}
+	if ( readparam(bVit) >= 5 && readparam(bLuk) <= 10 )
+	if ( killedrid == FABRE ) {
+		fabrekill++;
+		if ( poringkill == 15 ) {
+			statusup2 bVit, 1;
+			fabrekill = 0;
+		}
+	}
+	
+	if ( readparam(bVit) >= 10 && readparam(bLuk) <= 15 )
+	if ( killedrid == FABRE ) {
+		fabrekill++;
+		if ( poringkill == 25 ) {
+			statusup2 bVit, 1;
+			fabrekill = 0;
+		}
+	}
+
+	if ( readparam(bVit) >= 15 && readparam(bLuk) <= 20 )
+	if ( killedrid == FABRE ) {
+		fabrekill++;
+		if ( poringkill == 40 ) {
+			statusup2 bVit, 1;
+			fabrekill = 0;
+		}
+	}
+
+	if ( readparam(bVit) >= 20 && readparam(bLuk) <= 25 )
+	if ( killedrid == FABRE ) {
+		poringkill++;
+		if ( fabrekill == 100 ) {
+			statusup2 bVit, 1;
+			fabrekill = 0;
+		}
+	}
+	
+	if ( readparam(bVit) >= 25 && readparam(bLuk) <= 30 )
+	if ( killedrid == FABRE ) {
+		poringkill++;
+		if ( poringkill == 150 ) {
+			statusup2 bVit, 1;
+			fabrekill = 0;
+		}
+	}
+
+	if ( readparam(bVit) >= 30 && readparam(bLuk) <= 40 )
+	if ( killedrid == FABRE ) {
+		poringkill++;
+		if ( fabrekill == 200 ) {
+			statusup2 bVit, 1;
+			fabrekill = 0;
+		}
+	}
+	end;
+}

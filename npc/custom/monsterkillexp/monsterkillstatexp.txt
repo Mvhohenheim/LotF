@@ -1,0 +1,13 @@
+-	script	monsterkillstat	FAKE_NPC,{
+
+OnNPCKillEvent:
+	if ( sqrt(pow( getmonsterinfo( killedrid, MOB_LV ) - BaseLevel, 2)) <= 10 ) { // if level difference below 10
+		mobkill++; // any mob kill increase the count
+		if ( mobkill >= 10 ) { // if kill any monster more than 10
+			StatusPoint++; // increase status point by 1
+			mobkill = 0;
+		}
+	}
+
+	end;
+}
